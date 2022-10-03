@@ -523,13 +523,11 @@ function sendInvitesToMentors() {
     let mentorInvited = event.getGuestByEmail(mentorEmail);
     if (!mentorInvited) {
       // Do not use addGuest method. It won't send emails to new guests.
-      let meetIdStripped = meetId.slice(0, meetId.lastIndexOf("@google.com"));
-      console.log(calendarId, meetIdStripped);
-      let eventResource = Calendar.Events.get(calendarId, meetIdStripped);
+      let eventResource = Calendar.Events.get(calendarId, meetId);
       eventResource.attendees.push({email: mentorEmail});
       let requestBody = {attendees: eventResource.attendees};
       let queryParams = {sendUpdates: "all"};
-      Calendar.Events.patch(requestBody, calendarId, meetIdStripped, queryParams);
+      Calendar.Events.patch(requestBody, calendarId, meetId, queryParams);
       ++numSuccess;
     } else {
       ++numSkipped;
