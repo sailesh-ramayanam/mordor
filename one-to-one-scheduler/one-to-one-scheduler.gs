@@ -1,5 +1,5 @@
 // Whenever you publish a new version of the add-on, you must increment the below version number. This helps for book-keeping and comparing with previous versions.
-// Previous version: 2
+// Previous version: 3
 
 /**
  * These are 0-based indices. Do not confuse them with column numbers.
@@ -250,36 +250,21 @@ function createMeeting(calendar, details) {
     result.errorMsg = MSG_CALENDAR_NOT_FOUND;
     return result;
   }
-  let eventRequest = {
-    'summary': '',
-    'start': {},
-    'end': {},
-    'attendees': [],
-    'reminders': {
-      'useDefault': false,
-      'overrides': [
-        {'method': 'popup', 'minutes': MEETING_FIRST_REMINDER_MINUTES},
-        {'method': 'popup', 'minutes': MEETING_SECOND_REMINDER_MINUTES}
-      ]
-    },
-    'guestsCanInviteOthers': false,
-    'guestsCanModify': false,
-    'guestsCanSeeOtherGuests': false
-  };
-  let queryParams = {sendUpdates: "all"};
+
+  let guestList = "";
 
   let studentEmail = details[STUDENT_EMAIL_INDEX].trim();
   if (!validateEmail(studentEmail)) {
     result.errorMsg = "Invalid email: " + studentEmail;
     return result;
   }
-  eventRequest.attendees.push({'email': studentEmail});
+  guestList = studentEmail;
 
   let ssmEmails = details[SSM_EMAILS_INDEX].split(",");
   for (let eIndex = 0; eIndex < ssmEmails.length; ++eIndex) {
     let currEmail = ssmEmails[eIndex].trim();
     if (validateEmail(currEmail)) {
-      eventRequest.attendees.push({'email': currEmail});
+      guestList += ("," + currEmail);
     }
   }
 
@@ -288,7 +273,8 @@ function createMeeting(calendar, details) {
     // If name is not given, we will take email as name
     studentName = studentEmail;
   }
-  eventRequest.summary = studentName + MEETING_TITLE_SUFFIX;
+  // eventRequest.summary = studentName + MEETING_TITLE_SUFFIX;
+  let title = studentName + MEETING_TITLE_SUFFIX;
 
   let meetDate = parseDate(details[DATE_INDEX]);
   if (!meetDate) {
@@ -314,16 +300,44 @@ function createMeeting(calendar, details) {
   }
 
   let meetStart = new Date(meetDate.year, meetDate.month - 1, meetDate.day, startTime.hours, startTime.minutes);
-  eventRequest.start.dateTime = meetStart.toISOString();
-  eventRequest.start.timeZone = "UTC";
-
   let meetEnd = new Date(meetDate.year, meetDate.month - 1, meetDate.day, endTime.hours, endTime.minutes);
-  eventRequest.end.dateTime = meetEnd.toISOString();
-  eventRequest.end.timeZone = "UTC";
 
-  let event = Calendar.Events.insert(eventRequest, calendar.getId(), queryParams);
-  result.eventId = event.id;
+  try {
+    let event = calendar.createEvent(title, meetStart, meetEnd, {guests: guestList, sendInvites: true});
+    event.setGuestsCanInviteOthers(false)
+    .setGuestsCanModify(false)
+    .setGuestsCanSeeGuests(false);
+
+    result.eventId = event.getId().replace("@google.com", "");
+  } catch (error) {
+    result.errorMsg = "Event creation failed. " + error.toString();
+  }
   return result;
+}
+
+function addAttendees(calendarId, meetId, emails) {
+  try {
+    // Do not use addGuest method. It won't send emails to new guests.
+    let eventResource = Calendar.Events.get(calendarId, meetId);
+    if (!eventResource) {
+      console.log("Event could not be retrieved - " + calendarId + ", " + meetId);
+      return false;
+    }
+    if (!eventResource.attendees) {
+      eventResource.attendees = [];
+    }
+    for (let index = 0; index < emails.length; ++index) {
+      eventResource.attendees.push({email: emails[index]});
+    }
+    let requestBody = {attendees: eventResource.attendees};
+    let queryParams = {sendUpdates: "all", conferenceDataVersion: 1};
+    Calendar.Events.patch(requestBody, calendarId, meetId, queryParams);
+  } catch (error) {
+    console.log("Event could not be patched - " + calendarId + ", " + meetId);
+    console.log(error.toString());
+    return false;
+  }
+  return true;
 }
 
 function sendInvitesToStudents() {
@@ -523,12 +537,11 @@ function sendInvitesToMentors() {
     let mentorInvited = event.getGuestByEmail(mentorEmail);
     if (!mentorInvited) {
       // Do not use addGuest method. It won't send emails to new guests.
-      let eventResource = Calendar.Events.get(calendarId, meetId);
-      eventResource.attendees.push({email: mentorEmail});
-      let requestBody = {attendees: eventResource.attendees};
-      let queryParams = {sendUpdates: "all"};
-      Calendar.Events.patch(requestBody, calendarId, meetId, queryParams);
-      ++numSuccess;
+      if (addAttendees(calendarId, meetId, [mentorEmail])) {
+        ++numSuccess;
+      } else {
+        invalidMeetings.push(rowNumber);
+      }
     } else {
       ++numSkipped;
     }
