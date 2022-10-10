@@ -1,21 +1,22 @@
 // Whenever you publish a new version of the add-on, you must increment the below version number. This helps for book-keeping and comparing with previous versions.
-// Previous version: 4
+// Previous version: 5
 
 /**
  * These are 0-based indices. Do not confuse them with column numbers.
  * First column will have index as 0.
  */
-const STUDENT_NAME_INDEX = 0;
-const STUDENT_EMAIL_INDEX = 1;
-const DATE_INDEX = 2;
-const START_TIME_INDEX = 3;
-const END_TIME_INDEX = 4;
-const MEETING_ID_INDEX = 5;
-const STUDENT_RESPONSE_INDEX = 6;
-const SSM_EMAILS_INDEX = 7;
-const MENTOR_EMAIL_INDEX = 8;
-const MENTOR_RESPONSE_INDEX = 9;
-const CANCEL_FLAG_INDEX = 10;
+const MODULE_NAME_INDEX = 0;
+const STUDENT_NAME_INDEX = 1;
+const STUDENT_EMAIL_INDEX = 2;
+const DATE_INDEX = 3;
+const START_TIME_INDEX = 4;
+const END_TIME_INDEX = 5;
+const MEETING_ID_INDEX = 6;
+const STUDENT_RESPONSE_INDEX = 7;
+const OPS_REQUEST_INDEX = 8;
+const SSM_EMAILS_INDEX = 9;
+const MENTOR_EMAIL_INDEX = 10;
+const MENTOR_RESPONSE_INDEX = 11;
 /**
  * If you add/remove/modify columns, you must also change
  * 1. DATA_END_COLUMN
@@ -23,7 +24,7 @@ const CANCEL_FLAG_INDEX = 10;
  */
 
 const DATA_BEGIN_ROW = 2;
-const DATA_END_COLUMN = "K";
+const DATA_END_COLUMN = "L";
 
 const NOT_INVITED = "NOT INVITED";
 
@@ -48,22 +49,28 @@ const MSG_HELP = `
 
 - Your sheet must have the following columns in the given order
 
-1. Name - Name of the student. To be filled by the team.
-2. Email - Email id of the student. To be filled by the team.
-3. Date - Date of 1:1 in yyyy-mm-dd format. To be filled by the team.
-4. Start time - Start time of 1:1 in hh:mm format (24 hours). To be filled by the team.
-5. End time - End time of 1:1 in hh:mm format (24 hours). To be filled by the team.
-6. Meeting link - Auto populated by the script
-7. Student response - Auto populated by the script
-8. SSM emails - Additonal emails you want to include in the meeting - Comma separated values.
-9. Mentor email - Email id of the mentor. To be filled by the team.
-10. Mentor response - Auto populated by the script
-11. Cancel meeting - 1 or 0. 1 means cancel. To be filled by the team.
+1. Module Name - Name of the Module. To be filled by the team.
+2. Student Name - Name of the student. To be filled by the team.
+3. Student Email - Email id of the student. To be filled by the team.
+4. Date - Date of 1:1 in yyyy-mm-dd format. To be filled by the team.
+5. Start time - Start time of 1:1 in hh:mm format (24 hours). To be filled by the team.
+6. End time - End time of 1:1 in hh:mm format (24 hours). To be filled by the team.
+7. Meeting link - Auto populated by the script.
+8. Student response - Auto populated by the script.
+9. Ops Request - 0 or 1 or 2.
+                 0 means ignore the row.
+                 1 means Consider the row for meet invites.
+                 2 means Consider the row for Cancel Meeting.
+10. SSM emails - Additional emails you want to include in the meeting - Comma separated values.
+11. Mentor email - Email id of the mentor. To be filled by the team.
+12. Mentor response - Auto populated by the script.
+13. Cancel meeting - 1 or 0. 1 means cancel. To be filled by the team.
 `;
 
 const DATE_DELIMITER = "-";
 
-const MEETING_TITLE_SUFFIX = " - 1:1 - 10x Academy";
+const MEETING_TITLE_PREFIX = " - 1:1 (";
+const MEETING_TITLE_SUFFIX = ") - 10x Academy"
 const MEETING_FIRST_REMINDER_MINUTES = 60;
 const MEETING_SECOND_REMINDER_MINUTES = 30;
 
@@ -273,8 +280,15 @@ function createMeeting(calendar, details) {
     // If name is not given, we will take email as name
     studentName = studentEmail;
   }
+
+  let moduleName = details[MODULE_NAME_INDEX].trim();
+  if (moduleName.length === 0) {
+    // If Module name is not given, we will take module name as Session
+    moduleName = "Session";
+  }
+
   // eventRequest.summary = studentName + MEETING_TITLE_SUFFIX;
-  let title = studentName + MEETING_TITLE_SUFFIX;
+  let title = studentName + MEETING_TITLE_PREFIX + moduleName + MEETING_TITLE_SUFFIX;
 
   let meetDate = parseDate(details[DATE_INDEX]);
   if (!meetDate) {
@@ -364,6 +378,13 @@ function sendInvitesToStudents() {
   let successRows = [];
   for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
+    let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
+    if (opsRequestFlag !== 1) {
+      // The row should be skipped
+      skippedRows.push(rowNumber);
+      continue;
+    }
+
     let meetIdCell = activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
     if (meetIdCell.getValue().trim() !== "") {
       // Meeting is already set
@@ -385,7 +406,7 @@ function sendInvitesToStudents() {
   }
 
   let summary = `Number of meetings created: ${successRows.length}
-  Number of skipped rows: ${skippedRows.length} (meeting was already created previously)
+  Number of skipped rows: ${skippedRows.length} (meeting was already created previously or skipped intentionally)
   Number of rows with errors: ${errorRows.length}
   ---
   Following are the error rows.
@@ -404,11 +425,24 @@ function sendInvitesToStudents() {
 
 function getResponsesHelper(calendar, sheet, oneToOneData) {
   let noMeetingRows = [];
+  let skippedRows = [];
   let invalidRows = [];
   let numStudentsUpdated = 0;
   let numMentorsUpdated = 0;
   for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
+    let opsRequestFlag = parseInt(sheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
+    if (opsRequestFlag === 2) {
+      // The row should be skipped
+      noMeetingRows.push(rowNumber);
+      continue;
+    }
+    if (opsRequestFlag !== 1) {
+      // The row should be skipped
+      skippedRows.push(rowNumber);
+      continue;
+    }
+
     let meetIdCell = sheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
     let meetId = meetIdCell.getValue().trim();
     if (meetId === "") {
@@ -444,7 +478,7 @@ function getResponsesHelper(calendar, sheet, oneToOneData) {
       }
     }
   }
-  return {noMeetingRows, invalidRows, numStudentsUpdated, numMentorsUpdated};
+  return {noMeetingRows, skippedRows, invalidRows, numStudentsUpdated, numMentorsUpdated};
 }
 
 function getResponses() {
@@ -470,12 +504,19 @@ function getResponses() {
   let summary = `Number of student responses updated: ${responseStats.numStudentsUpdated}
   Number of mentor responses updated: ${responseStats.numMentorsUpdated}
   Number of rows with no meeting: ${responseStats.noMeetingRows.length}
+  Number of skipped rows: ${responseStats.skippedRows.length} (skipped intentionally)
   Number of rows with invalid meeting id: ${responseStats.invalidRows.length}
   ---
   Following rows have no meeting.
   `;
   for (let i = 0; i < responseStats.noMeetingRows.length; ++i) {
     summary += `\nRow ${responseStats.noMeetingRows[i]}`;
+  }
+  summary += `---
+  Following are skipped rows.
+  `;
+  for (let i = 0; i < responseStats.skippedRows.length; ++i) {
+    summary += `\nRow ${skippedRows[i]}`;
   }
   summary += `---
   Following rows have invalid meeting id.
@@ -514,6 +555,18 @@ function sendInvitesToMentors() {
 
   for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
+    let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
+    if (opsRequestFlag === 2) {
+      // The row should be skipped since it was previously cancelled
+      noMeetingRows.push(rowNumber);
+      continue;
+    }
+    if (opsRequestFlag !== 1) {
+      // The row should be skipped
+      ++numSkipped;
+      continue;
+    }
+
     let meetIdCell = activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
     let meetId = meetIdCell.getValue().trim();
     if (meetId === "") {
@@ -551,7 +604,7 @@ function sendInvitesToMentors() {
   getResponsesHelper(calendar, activeSheet, oneToOneData);
 
   let summary = `Number of rows for which invites have been sent: ${numSuccess}
-  Number of rows skipped: ${numSkipped} (invite was already sent previously)
+  Number of rows skipped: ${numSkipped} (invite was already sent previously or intentionally skipped)
   Number of rows with invalid emails: ${invalidEmails.length}
   Number of rows with invalid meeting id: ${invalidMeetings.length}
   Number of rows with no meeting: ${noMeetingRows.length}
@@ -605,8 +658,8 @@ function cancelEvents() {
   let canceledRows = [];
   for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
-    let cancelFlag = parseInt(activeSheet.getRange(rowNumber, CANCEL_FLAG_INDEX + 1).getValue());
-    if (cancelFlag !== 1) {
+    let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
+    if (opsRequestFlag !== 2) {
       // This row doesn't need to be canceled
       continue;
     }
