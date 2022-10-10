@@ -64,7 +64,6 @@ const MSG_HELP = `
 10. SSM emails - Additional emails you want to include in the meeting - Comma separated values.
 11. Mentor email - Email id of the mentor. To be filled by the team.
 12. Mentor response - Auto populated by the script.
-13. Cancel meeting - 1 or 0. 1 means cancel. To be filled by the team.
 `;
 
 const DATE_DELIMITER = "-";
