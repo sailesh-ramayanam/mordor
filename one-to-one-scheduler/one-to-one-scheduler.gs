@@ -1,5 +1,5 @@
 // Whenever you publish a new version of the add-on, you must increment the below version number. This helps for book-keeping and comparing with previous versions.
-// Previous version: 5
+// Previous version: 4
 
 /**
  * These are 0-based indices. Do not confuse them with column numbers.
@@ -25,6 +25,10 @@ const MENTOR_RESPONSE_INDEX = 11;
 
 const DATA_BEGIN_ROW = 2;
 const DATA_END_COLUMN = "L";
+
+const FLAG_IGNORE_ROW = 0;
+const FLAG_SEND_INVITE = 1;
+const FLAG_CANCEL_INVITE = 2;
 
 const NOT_INVITED = "NOT INVITED";
 
@@ -57,10 +61,7 @@ const MSG_HELP = `
 6. End time - End time of 1:1 in hh:mm format (24 hours). To be filled by the team.
 7. Meeting link - Auto populated by the script.
 8. Student response - Auto populated by the script.
-9. Ops Request - 0 or 1 or 2.
-                 0 means ignore the row.
-                 1 means Consider the row for meet invites.
-                 2 means Consider the row for Cancel Meeting.
+9. Ops Request - (0 - ignore the row),(1 - for meet invites),(2 - for Cancel Meeting) To be filled by the team.
 10. SSM emails - Additional emails you want to include in the meeting - Comma separated values.
 11. Mentor email - Email id of the mentor. To be filled by the team.
 12. Mentor response - Auto populated by the script.
@@ -286,7 +287,6 @@ function createMeeting(calendar, details) {
     moduleName = "Session";
   }
 
-  // eventRequest.summary = studentName + MEETING_TITLE_SUFFIX;
   let title = studentName + MEETING_TITLE_PREFIX + moduleName + MEETING_TITLE_SUFFIX;
 
   let meetDate = parseDate(details[DATE_INDEX]);
@@ -378,7 +378,7 @@ function sendInvitesToStudents() {
   for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
     let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
-    if (opsRequestFlag !== 1) {
+    if (opsRequestFlag !== FLAG_SEND_INVITE) {
       // The row should be skipped
       skippedRows.push(rowNumber);
       continue;
@@ -431,12 +431,12 @@ function getResponsesHelper(calendar, sheet, oneToOneData) {
   for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
     let opsRequestFlag = parseInt(sheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
-    if (opsRequestFlag === 2) {
+    if (opsRequestFlag === FLAG_CANCEL_INVITE) {
       // The row should be skipped
       noMeetingRows.push(rowNumber);
       continue;
     }
-    if (opsRequestFlag !== 1) {
+    if (opsRequestFlag !== FLAG_SEND_INVITE) {
       // The row should be skipped
       skippedRows.push(rowNumber);
       continue;
@@ -555,12 +555,8 @@ function sendInvitesToMentors() {
   for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
     let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
-    if (opsRequestFlag === 2) {
-      // The row should be skipped since it was previously cancelled
-      noMeetingRows.push(rowNumber);
-      continue;
-    }
-    if (opsRequestFlag !== 1) {
+
+    if (opsRequestFlag !== FLAG_SEND_INVITE) {
       // The row should be skipped
       ++numSkipped;
       continue;
@@ -658,7 +654,7 @@ function cancelEvents() {
   for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
     let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
-    if (opsRequestFlag !== 2) {
+    if (opsRequestFlag !== FLAG_CANCEL_INVITE) {
       // This row doesn't need to be canceled
       continue;
     }
