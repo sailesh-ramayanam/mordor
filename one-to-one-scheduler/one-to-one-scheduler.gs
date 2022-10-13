@@ -424,24 +424,11 @@ function sendInvitesToStudents() {
 
 function getResponsesHelper(calendar, sheet, oneToOneData) {
   let noMeetingRows = [];
-  let skippedRows = [];
   let invalidRows = [];
   let numStudentsUpdated = 0;
   let numMentorsUpdated = 0;
   for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
-    let opsRequestFlag = parseInt(sheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
-    if (opsRequestFlag === FLAG_CANCEL_INVITE) {
-      // The row should be skipped
-      noMeetingRows.push(rowNumber);
-      continue;
-    }
-    if (opsRequestFlag !== FLAG_SEND_INVITE) {
-      // The row should be skipped
-      skippedRows.push(rowNumber);
-      continue;
-    }
-
     let meetIdCell = sheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
     let meetId = meetIdCell.getValue().trim();
     if (meetId === "") {
@@ -477,7 +464,7 @@ function getResponsesHelper(calendar, sheet, oneToOneData) {
       }
     }
   }
-  return {noMeetingRows, skippedRows, invalidRows, numStudentsUpdated, numMentorsUpdated};
+  return {noMeetingRows, invalidRows, numStudentsUpdated, numMentorsUpdated};
 }
 
 function getResponses() {
@@ -503,19 +490,12 @@ function getResponses() {
   let summary = `Number of student responses updated: ${responseStats.numStudentsUpdated}
   Number of mentor responses updated: ${responseStats.numMentorsUpdated}
   Number of rows with no meeting: ${responseStats.noMeetingRows.length}
-  Number of skipped rows: ${responseStats.skippedRows.length} (skipped intentionally)
   Number of rows with invalid meeting id: ${responseStats.invalidRows.length}
   ---
   Following rows have no meeting.
   `;
   for (let i = 0; i < responseStats.noMeetingRows.length; ++i) {
     summary += `\nRow ${responseStats.noMeetingRows[i]}`;
-  }
-  summary += `---
-  Following are skipped rows.
-  `;
-  for (let i = 0; i < responseStats.skippedRows.length; ++i) {
-    summary += `\nRow ${skippedRows[i]}`;
   }
   summary += `---
   Following rows have invalid meeting id.
@@ -651,6 +631,7 @@ function cancelEvents() {
   }
 
   let canceledRows = [];
+  let invalidMeetings = [];
   for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
     let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
@@ -679,6 +660,7 @@ function cancelEvents() {
       console.log(ERROR_CODE_COULD_NOT_CANCEL_EVENT);
       console.log(error);
       logEndDelimiter();
+      invalidMeetings.push(rowNumber);
       continue;
     }
     canceledRows.push(rowNumber);
@@ -689,11 +671,18 @@ function cancelEvents() {
     mentorResponseCell.clearContent();
   }
   let summary = `Number of meetings canceled: ${canceledRows.length}
+  Number of rows with invalid meeting id: ${invalidMeetings.length} (The calendar event does not exist, or it has already been deleted.)
   ---
   Meetings in the following rows have been canceled.
   `;
   for (let i = 0; i < canceledRows.length; ++i) {
     summary += `\nRow ${canceledRows[i]}`;
+  }
+  summary += `---
+  Following rows have invalid meeting id.
+  `;
+  for (let i = 0; i < invalidMeetings.length; ++i) {
+    summary += `\nRow ${invalidMeetings[i]}`;
   }
   showInfo(TITLE_SUCCESS, summary);
 }
