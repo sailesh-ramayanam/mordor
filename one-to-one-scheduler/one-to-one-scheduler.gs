@@ -678,7 +678,7 @@ function cancelEvents() {
   for (let i = 0; i < canceledRows.length; ++i) {
     summary += `\nRow ${canceledRows[i]}`;
   }
-  summary += `---
+  summary += `\n---
   Following rows have invalid meeting id.
   `;
   for (let i = 0; i < invalidMeetings.length; ++i) {
