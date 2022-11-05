@@ -170,7 +170,7 @@ function parseDate(dateString) {
     }
 
     let year = parseInt(parts[0]);
-    if (year !== 2022) {
+    if (year !== 2022 && year !== 2023) {
       return null;
     }
 
@@ -413,7 +413,7 @@ function sendInvitesToStudents() {
   for (let i = 0; i < errorRows.length; ++i) {
     summary += `\nRow ${errorRows[i].rowNumber}: ${errorRows[i].error}`;
   }
-  summary += `---
+  summary += `\n---
   Following are skipped rows.
   `
   for (let i = 0; i < skippedRows.length; ++i) {
@@ -425,10 +425,17 @@ function sendInvitesToStudents() {
 function getResponsesHelper(calendar, sheet, oneToOneData) {
   let noMeetingRows = [];
   let invalidRows = [];
+  let skippedRows = [];
   let numStudentsUpdated = 0;
   let numMentorsUpdated = 0;
   for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
+    let opsRequestFlag = parseInt(sheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
+    if (opsRequestFlag !== FLAG_SEND_INVITE) {
+      // The row should be skipped
+      skippedRows.push(rowNumber);
+      continue;
+    }
     let meetIdCell = sheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
     let meetId = meetIdCell.getValue().trim();
     if (meetId === "") {
@@ -464,7 +471,7 @@ function getResponsesHelper(calendar, sheet, oneToOneData) {
       }
     }
   }
-  return {noMeetingRows, invalidRows, numStudentsUpdated, numMentorsUpdated};
+  return {noMeetingRows, skippedRows, invalidRows, numStudentsUpdated, numMentorsUpdated};
 }
 
 function getResponses() {
@@ -489,15 +496,22 @@ function getResponses() {
   let responseStats = getResponsesHelper(calendar, activeSheet, oneToOneData);
   let summary = `Number of student responses updated: ${responseStats.numStudentsUpdated}
   Number of mentor responses updated: ${responseStats.numMentorsUpdated}
+  Number of skipped rows: ${responseStats.skippedRows.length} (meeting was already created previously or skipped intentionally)
   Number of rows with no meeting: ${responseStats.noMeetingRows.length}
   Number of rows with invalid meeting id: ${responseStats.invalidRows.length}
   ---
+  Following are skipped rows.
+  `
+  for (let i = 0; i < responseStats.skippedRows.length; ++i) {
+    summary += `\nRow ${responseStats.skippedRows[i]}`;
+  }
+  summary += `\n---
   Following rows have no meeting.
   `;
   for (let i = 0; i < responseStats.noMeetingRows.length; ++i) {
     summary += `\nRow ${responseStats.noMeetingRows[i]}`;
   }
-  summary += `---
+  summary += `\n---
   Following rows have invalid meeting id.
   `;
   for (let i = 0; i < responseStats.invalidRows.length; ++i) {
@@ -585,7 +599,7 @@ function sendInvitesToMentors() {
   Number of rows with no meeting: ${noMeetingRows.length}
   `;
   
-  summary += `---
+  summary += `\n---
 
   Following rows have invalid email id.
   `;
@@ -593,7 +607,7 @@ function sendInvitesToMentors() {
     summary += `\nRow ${invalidEmails[i].row}: ${invalidEmails[i]}.email`;
   }
 
-  summary += `---
+  summary += `\n---
 
   Following rows have invalid meeting id.
   `;
@@ -601,7 +615,7 @@ function sendInvitesToMentors() {
     summary += `\nRow ${invalidMeetings[i]}`;
   }
 
-  summary += `---
+  summary += `\n---
 
   Following rows have no meeting.
   `;
