@@ -1,5 +1,5 @@
 // Whenever you publish a new version of the add-on, you must increment the below version number. This helps for book-keeping and comparing with previous versions.
-// Previous version: 5
+const LAST_PUBLISHED_VERSION = 5;
 
 /**
  * These are 0-based indices. Do not confuse them with column numbers.
@@ -47,6 +47,7 @@ const MSG_CALENDAR_REJECTED = "You chose not to use the current calendar.";
 const MSG_CALENDAR_NOT_FOUND = "Calendar not found";
 const MSG_COULD_NOT_FETCH_DATA = "Unable to fetch data from the sheet";
 const MSG_HELP = `
+Version: ${LAST_PUBLISHED_VERSION + 1}
 - Your sheet should be in the following format
 - 1st row must contain column names
 - Actual data must start from 2nd row
@@ -303,12 +304,12 @@ function createMeeting(calendar, details) {
 
   let endTime = parseTime(details[END_TIME_INDEX]);
   if (!endTime) {
-    result.errorMsg = "Invalid end time" + details[END_TIME_INDEX];
+    result.errorMsg = "Invalid end time: " + details[END_TIME_INDEX];
     return result;
   }
 
   if (endTime.hours < startTime.hours || (endTime.hours === startTime.hours && endTime.minutes < startTime.minutes)) {
-    result.errorMsg = "Invalid end time" + details[END_TIME_INDEX];
+    result.errorMsg = "Invalid end time: " + details[END_TIME_INDEX];
     return result;
   }
 
@@ -393,7 +394,7 @@ function sendInvitesToStudents() {
 
     let result = createMeeting(calendar, oneToOneData[rowIndex]);
     if (!result.eventId) {
-      errorRows.push({row: rowNumber, error: result.errorMsg});
+      errorRows.push({rowNumber: rowNumber, error: result.errorMsg});
       logBeinDelimiter();
       console.log(ERROR_CODE_COULD_NOT_CREATE_EVENT);
       console.log(result.errorMsg);
