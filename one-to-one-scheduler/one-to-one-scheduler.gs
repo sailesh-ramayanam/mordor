@@ -1,5 +1,5 @@
 // Whenever you publish a new version of the add-on, you must increment the below version number. This helps for book-keeping and comparing with previous versions.
-const LAST_PUBLISHED_VERSION = 5;
+const LAST_PUBLISHED_VERSION = 6;
 
 /**
  * These are 0-based indices. Do not confuse them with column numbers.
