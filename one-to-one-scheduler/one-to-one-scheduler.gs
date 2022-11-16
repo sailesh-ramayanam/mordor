@@ -17,6 +17,8 @@ const OPS_REQUEST_INDEX = 8;
 const SSM_EMAILS_INDEX = 9;
 const MENTOR_EMAIL_INDEX = 10;
 const MENTOR_RESPONSE_INDEX = 11;
+const RECORDING_LINK_INDEX = 12;
+const CHAT_LINK_INDEX = 13;
 /**
  * If you add/remove/modify columns, you must also change
  * 1. DATA_END_COLUMN
@@ -24,18 +26,20 @@ const MENTOR_RESPONSE_INDEX = 11;
  */
 
 const DATA_BEGIN_ROW = 2;
-const DATA_END_COLUMN = "L";
+const DATA_END_COLUMN = "N";
 
 const FLAG_IGNORE_ROW = 0;
 const FLAG_SEND_INVITE = 1;
 const FLAG_CANCEL_INVITE = 2;
 
 const NOT_INVITED = "NOT INVITED";
+const NOT_FOUND = "NOT FOUND";
 
 const MENU_TITLE = "10x 1:1";
 const MENU_INVITES_TO_STUDENTS = "Send invites to students";
 const MENU_GET_RESPONSES = "Get responses";
 const MENU_INVITES_TO_MENTORS = "Send invites to mentors";
+const MENU_GET_RECORDING_LINKS = "Get recording and chat links"
 const MENU_CANCEL_MEETINGS = "Cancel meetings";
 const MENU_HELP = "Help";
 
@@ -66,6 +70,8 @@ Version: ${LAST_PUBLISHED_VERSION + 1}
 10. SSM emails - Additional emails you want to include in the meeting - Comma separated values.
 11. Mentor email - Email id of the mentor. To be filled by the team.
 12. Mentor response - Auto populated by the script.
+13. Recording Link - Auto populated by the script.
+14. Chat Link - Auto populated by the script.
 `;
 
 const DATE_DELIMITER = "-";
@@ -94,6 +100,7 @@ function onOpen(e) {
   .addItem(MENU_INVITES_TO_STUDENTS, "sendInvitesToStudents")
   .addItem(MENU_GET_RESPONSES, "getResponses")
   .addItem(MENU_INVITES_TO_MENTORS, "sendInvitesToMentors")
+  .addItem(MENU_GET_RECORDING_LINKS, "getRecordingLinks")
   .addItem(MENU_CANCEL_MEETINGS, "cancelEvents")
   .addItem(MENU_HELP, "help")
   .addToUi();
@@ -320,7 +327,7 @@ function createMeeting(calendar, details) {
     let event = calendar.createEvent(title, meetStart, meetEnd, {guests: guestList, sendInvites: true});
     event.setGuestsCanInviteOthers(false)
     .setGuestsCanModify(false)
-    .setGuestsCanSeeGuests(false);
+    .setGuestsCanSeeGuests(true);
 
     result.eventId = event.getId().replace("@google.com", "");
   } catch (error) {
@@ -614,6 +621,133 @@ function sendInvitesToMentors() {
   `;
   for (let i = 0; i < invalidMeetings.length; ++i) {
     summary += `\nRow ${invalidMeetings[i]}`;
+  }
+
+  summary += `\n---
+
+  Following rows have no meeting.
+  `;
+  for (let i = 0; i < noMeetingRows.length; ++i) {
+    summary += `\nRow ${noMeetingRows[i]}`;
+  }
+  showInfo(TITLE_SUCCESS, summary);
+}
+
+function getRecordingLinks() {
+  let calendar = getCalendar();
+  if (!calendar) {
+    showInfo(TITLE_ERROR, MSG_CALENDAR_NOT_FOUND);
+    return;
+  }
+
+  if (!confirmCalendar(calendar)) {
+    showInfo(TITLE_ERROR, MSG_CALENDAR_REJECTED);
+    return;
+  }
+
+  let activeSheet = SpreadsheetApp.getActiveSheet();
+  let oneToOneData = get1to1Data(activeSheet);
+  if (!oneToOneData) {
+    showInfo(TITLE_ERROR, MSG_COULD_NOT_FETCH_DATA);
+    return;
+  }
+
+  let noMeetingRows = [];
+  let invalidMeetings = [];
+  let noRecordingLinks = [];
+  let numSuccess = 0;
+  let numSkipped = 0;
+  let calendarId = calendar.getId();
+
+  for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
+    let rowNumber = rowIndex + DATA_BEGIN_ROW;
+
+    let recordingLinkCell = activeSheet.getRange(rowNumber, RECORDING_LINK_INDEX + 1);
+    let chatLinkCell = activeSheet.getRange(rowNumber, CHAT_LINK_INDEX + 1);
+
+    let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
+
+    if (opsRequestFlag !== FLAG_SEND_INVITE) {
+      // The row should be skipped
+      ++numSkipped;
+      continue;
+    }
+
+    let meetIdCell = activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
+    let meetId = meetIdCell.getValue().trim();
+    if (meetId === "") {
+      // Meeting is not set
+      noMeetingRows.push(rowNumber);
+      continue;
+    }
+
+    let event = getEvent(calendar, meetId);
+    if (!event) {
+      invalidMeetings.push(rowNumber);
+      continue;
+    }
+
+    let eventResource = Calendar.Events.get(calendarId, meetId);
+    if (!eventResource) {
+      console.log("Event could not be retrieved - " + calendarId + ", " + meetId);
+      invalidMeetings.push(rowNumber);
+      continue;
+    }
+
+    let eventAttachments = eventResource.attachments;
+    
+    if (!eventAttachments) {
+      recordingLinkCell.setValue(NOT_FOUND);
+      chatLinkCell.setValue(NOT_FOUND);
+      noRecordingLinks.push(rowNumber);
+      continue;
+    } else {
+      for (let i = 0; i < eventAttachments.length; ++i) {
+        let linkUrl = eventAttachments[i].fileUrl;
+        let queryIndex = linkUrl.indexOf("?");
+        linkUrl = linkUrl.substring(0,queryIndex);
+        if (eventAttachments[i].mimeType === "video/mp4") {
+          recordingLinkCell.setValue(linkUrl);
+        }
+        else if (eventAttachments[i].mimeType === "text/plain") {
+          chatLinkCell.setValue(linkUrl);
+        }
+      }
+      ++numSuccess
+    }
+
+    if (recordingLinkCell.getValue() === "") {
+      recordingLinkCell.setValue(NOT_FOUND);
+      noRecordingLinks.push(rowNumber);
+    }
+    if (chatLinkCell.getValue() === "") {
+      chatLinkCell.setValue(NOT_FOUND);
+      noRecordingLinks.push(rowNumber);
+    }
+
+  }
+
+  let summary = `Number of rows for which recording and chat links were generated: ${numSuccess}
+  Number of rows for which no recording and chat links were found: ${noRecordingLinks.length}
+  Number of rows skipped: ${numSkipped} (Links were already present or intentionally skipped)
+  Number of rows with invalid meeting id: ${invalidMeetings.length}
+  Number of rows with no meeting: ${noMeetingRows.length}
+  `;
+  
+  summary += `\n---
+
+  Following rows have invalid meeting id.
+  `;
+  for (let i = 0; i < invalidMeetings.length; ++i) {
+    summary += `\nRow ${invalidMeetings[i]}`;
+  }
+  
+  summary += `\n---
+
+  Following rows have no recording and chat links.
+  `;
+  for (let i = 0; i < noRecordingLinks.length; ++i) {
+    summary += `\nRow ${noRecordingLinks[i]}`;
   }
 
   summary += `\n---
