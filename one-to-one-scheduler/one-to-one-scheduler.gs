@@ -34,12 +34,15 @@ const FLAG_CANCEL_INVITE = 2;
 
 const NOT_INVITED = "NOT INVITED";
 const NOT_FOUND = "NOT FOUND";
+const RECORDING_MIME_TYPE = "video/mp4";
+const CHAT_MIME_TYPE = "text/plain";
+const QUERY_DELIMITER = "?";
 
 const MENU_TITLE = "10x 1:1";
 const MENU_INVITES_TO_STUDENTS = "Send invites to students";
 const MENU_GET_RESPONSES = "Get responses";
 const MENU_INVITES_TO_MENTORS = "Send invites to mentors";
-const MENU_GET_RECORDING_LINKS = "Get recording and chat links"
+const MENU_GET_RECORDING_AND_CHAT_LINKS = "Get recording and chat links"
 const MENU_CANCEL_MEETINGS = "Cancel meetings";
 const MENU_HELP = "Help";
 
@@ -100,7 +103,7 @@ function onOpen(e) {
   .addItem(MENU_INVITES_TO_STUDENTS, "sendInvitesToStudents")
   .addItem(MENU_GET_RESPONSES, "getResponses")
   .addItem(MENU_INVITES_TO_MENTORS, "sendInvitesToMentors")
-  .addItem(MENU_GET_RECORDING_LINKS, "getRecordingLinks")
+  .addItem(MENU_GET_RECORDING_AND_CHAT_LINKS, "getRecordingAndChatLinks")
   .addItem(MENU_CANCEL_MEETINGS, "cancelEvents")
   .addItem(MENU_HELP, "help")
   .addToUi();
@@ -258,6 +261,34 @@ function get1to1Data(sheet) {
   }
 }
 
+function initSetup() {
+  let result = {
+    success: false,
+    calendar: null,
+    activeSheet: null,
+    oneToOneData: null
+  };
+  result.calendar = getCalendar();
+  if (!result.calendar) {
+    showInfo(TITLE_ERROR, MSG_CALENDAR_NOT_FOUND);
+    return result;
+  }
+
+  if (!confirmCalendar(result.calendar)) {
+    showInfo(TITLE_ERROR, MSG_CALENDAR_REJECTED);
+    return result;
+  }
+
+  result.activeSheet = SpreadsheetApp.getActiveSheet();
+  result.oneToOneData = get1to1Data(result.activeSheet);
+  if (!result.oneToOneData) {
+    showInfo(TITLE_ERROR, MSG_COULD_NOT_FETCH_DATA);
+    return result;
+  }
+  result.success = true;
+  return result;
+}
+
 function createMeeting(calendar, details) {
   let result = {errorMsg: "", eventId: null};
 
@@ -362,44 +393,31 @@ function addAttendees(calendarId, meetId, emails) {
 }
 
 function sendInvitesToStudents() {
-  let calendar = getCalendar();
-  if (!calendar) {
-    showInfo(TITLE_ERROR, MSG_CALENDAR_NOT_FOUND);
-    return;
-  }
-
-  if (!confirmCalendar(calendar)) {
-    showInfo(TITLE_ERROR, MSG_CALENDAR_REJECTED);
-    return;
-  }
-
-  let activeSheet = SpreadsheetApp.getActiveSheet();
-  let oneToOneData = get1to1Data(activeSheet);
-  if (!oneToOneData) {
-    showInfo(TITLE_ERROR, MSG_COULD_NOT_FETCH_DATA);
+  let setupResult = initSetup();
+  if (!setupResult.success) {
     return;
   }
 
   let errorRows = [];
   let skippedRows = [];
   let successRows = [];
-  for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
+  for (let rowIndex = 0; rowIndex < setupResult.oneToOneData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
-    let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
+    let opsRequestFlag = parseInt(setupResult.activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
     if (opsRequestFlag !== FLAG_SEND_INVITE) {
       // The row should be skipped
       skippedRows.push(rowNumber);
       continue;
     }
 
-    let meetIdCell = activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
+    let meetIdCell = setupResult.activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
     if (meetIdCell.getValue().trim() !== "") {
       // Meeting is already set
       skippedRows.push(rowNumber);
       continue;
     }
 
-    let result = createMeeting(calendar, oneToOneData[rowIndex]);
+    let result = createMeeting(setupResult.calendar, setupResult.oneToOneData[rowIndex]);
     if (!result.eventId) {
       errorRows.push({rowNumber: rowNumber, error: result.errorMsg});
       logBeinDelimiter();
@@ -483,25 +501,12 @@ function getResponsesHelper(calendar, sheet, oneToOneData) {
 }
 
 function getResponses() {
-  let calendar = getCalendar();
-  if (!calendar) {
-    showInfo(TITLE_ERROR, MSG_CALENDAR_NOT_FOUND);
+  let setupResult = initSetup();
+  if (!setupResult.success) {
     return;
   }
 
-  if (!confirmCalendar(calendar)) {
-    showInfo(TITLE_ERROR, MSG_CALENDAR_REJECTED);
-    return;
-  }
-
-  let activeSheet = SpreadsheetApp.getActiveSheet();
-  let oneToOneData = get1to1Data(activeSheet);
-  if (!oneToOneData) {
-    showInfo(TITLE_ERROR, MSG_COULD_NOT_FETCH_DATA);
-    return;
-  }
-
-  let responseStats = getResponsesHelper(calendar, activeSheet, oneToOneData);
+  let responseStats = getResponsesHelper(setupResult.calendar, setupResult.activeSheet, setupResult.oneToOneData);
   let summary = `Number of student responses updated: ${responseStats.numStudentsUpdated}
   Number of mentor responses updated: ${responseStats.numMentorsUpdated}
   Number of skipped rows: ${responseStats.skippedRows.length} (meeting was already created previously or skipped intentionally)
@@ -529,21 +534,8 @@ function getResponses() {
 }
 
 function sendInvitesToMentors() {
-  let calendar = getCalendar();
-  if (!calendar) {
-    showInfo(TITLE_ERROR, MSG_CALENDAR_NOT_FOUND);
-    return;
-  }
-
-  if (!confirmCalendar(calendar)) {
-    showInfo(TITLE_ERROR, MSG_CALENDAR_REJECTED);
-    return;
-  }
-
-  let activeSheet = SpreadsheetApp.getActiveSheet();
-  let oneToOneData = get1to1Data(activeSheet);
-  if (!oneToOneData) {
-    showInfo(TITLE_ERROR, MSG_COULD_NOT_FETCH_DATA);
+  let setupResult = initSetup();
+  if (!setupResult.success) {
     return;
   }
 
@@ -552,11 +544,11 @@ function sendInvitesToMentors() {
   let invalidEmails = [];
   let numSuccess = 0;
   let numSkipped = 0;
-  let calendarId = calendar.getId();
+  let calendarId = setupResult.calendar.getId();
 
-  for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
+  for (let rowIndex = 0; rowIndex < setupResult.oneToOneData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
-    let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
+    let opsRequestFlag = parseInt(setupResult.activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
 
     if (opsRequestFlag !== FLAG_SEND_INVITE) {
       // The row should be skipped
@@ -564,7 +556,7 @@ function sendInvitesToMentors() {
       continue;
     }
 
-    let meetIdCell = activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
+    let meetIdCell = setupResult.activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
     let meetId = meetIdCell.getValue().trim();
     if (meetId === "") {
       // Meeting is not set
@@ -572,13 +564,13 @@ function sendInvitesToMentors() {
       continue;
     }
 
-    let event = getEvent(calendar, meetId);
+    let event = getEvent(setupResult.calendar, meetId);
     if (!event) {
       invalidMeetings.push(rowNumber);
       continue;
     }
     
-    let mentorEmail = activeSheet.getRange(rowNumber, MENTOR_EMAIL_INDEX + 1).getValue().trim();
+    let mentorEmail = setupResult.activeSheet.getRange(rowNumber, MENTOR_EMAIL_INDEX + 1).getValue().trim();
     if (!validateEmail(mentorEmail)) {
       invalidEmails.push({row: rowNumber, email: mentorEmail});
       continue;
@@ -598,7 +590,7 @@ function sendInvitesToMentors() {
   }
 
   // Update the responses so that there is no confusion with older responses
-  getResponsesHelper(calendar, activeSheet, oneToOneData);
+  getResponsesHelper(setupResult.calendar, setupResult.activeSheet, setupResult.oneToOneData);
 
   let summary = `Number of rows for which invites have been sent: ${numSuccess}
   Number of rows skipped: ${numSkipped} (invite was already sent previously or intentionally skipped)
@@ -633,47 +625,30 @@ function sendInvitesToMentors() {
   showInfo(TITLE_SUCCESS, summary);
 }
 
-function getRecordingLinks() {
-  let calendar = getCalendar();
-  if (!calendar) {
-    showInfo(TITLE_ERROR, MSG_CALENDAR_NOT_FOUND);
-    return;
-  }
-
-  if (!confirmCalendar(calendar)) {
-    showInfo(TITLE_ERROR, MSG_CALENDAR_REJECTED);
-    return;
-  }
-
-  let activeSheet = SpreadsheetApp.getActiveSheet();
-  let oneToOneData = get1to1Data(activeSheet);
-  if (!oneToOneData) {
-    showInfo(TITLE_ERROR, MSG_COULD_NOT_FETCH_DATA);
+function getRecordingAndChatLinks() {
+  let setupResult = initSetup();
+  if (!setupResult.success) {
     return;
   }
 
   let noMeetingRows = [];
   let invalidMeetings = [];
   let noRecordingLinks = [];
+  let noChatLinks = [];
   let numSuccess = 0;
   let numSkipped = 0;
-  let calendarId = calendar.getId();
+  let calendarId = setupResult.calendar.getId();
 
-  for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
+  for (let rowIndex = 0; rowIndex < setupResult.oneToOneData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
-
-    let recordingLinkCell = activeSheet.getRange(rowNumber, RECORDING_LINK_INDEX + 1);
-    let chatLinkCell = activeSheet.getRange(rowNumber, CHAT_LINK_INDEX + 1);
-
-    let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
-
+    let opsRequestFlag = parseInt(setupResult.activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
     if (opsRequestFlag !== FLAG_SEND_INVITE) {
       // The row should be skipped
       ++numSkipped;
       continue;
     }
 
-    let meetIdCell = activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
+    let meetIdCell = setupResult.activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
     let meetId = meetIdCell.getValue().trim();
     if (meetId === "") {
       // Meeting is not set
@@ -681,7 +656,7 @@ function getRecordingLinks() {
       continue;
     }
 
-    let event = getEvent(calendar, meetId);
+    let event = getEvent(setupResult.calendar, meetId);
     if (!event) {
       invalidMeetings.push(rowNumber);
       continue;
@@ -696,39 +671,52 @@ function getRecordingLinks() {
 
     let eventAttachments = eventResource.attachments;
     
+    let recordingLinkCell = setupResult.activeSheet.getRange(rowNumber, RECORDING_LINK_INDEX + 1);
+    let chatLinkCell = setupResult.activeSheet.getRange(rowNumber, CHAT_LINK_INDEX + 1);
+
     if (!eventAttachments) {
       recordingLinkCell.setValue(NOT_FOUND);
       chatLinkCell.setValue(NOT_FOUND);
       noRecordingLinks.push(rowNumber);
+      noChatLinks.push(rowNumber);
       continue;
     } else {
+      let videoFound = false;
+      let chatFound = false;
       for (let i = 0; i < eventAttachments.length; ++i) {
-        let linkUrl = eventAttachments[i].fileUrl;
-        let queryIndex = linkUrl.indexOf("?");
-        linkUrl = linkUrl.substring(0,queryIndex);
-        if (eventAttachments[i].mimeType === "video/mp4") {
-          recordingLinkCell.setValue(linkUrl);
-        }
-        else if (eventAttachments[i].mimeType === "text/plain") {
-          chatLinkCell.setValue(linkUrl);
+        let currentAttachment = eventAttachments[i];
+        let linkUrl = currentAttachment.fileUrl;
+        if (linkUrl) {
+          let queryIndex = linkUrl.indexOf(QUERY_DELIMITER);
+          if (queryIndex > 0) {
+            linkUrl = linkUrl.substring(0,queryIndex);
+          }
+          if (currentAttachment.mimeType === RECORDING_MIME_TYPE) {
+            videoFound = true;
+            recordingLinkCell.setValue(linkUrl);
+          } else if (currentAttachment.mimeType === CHAT_MIME_TYPE) {
+            chatFound = true;
+            chatLinkCell.setValue(linkUrl);
+          }
         }
       }
-      ++numSuccess
+      if (videoFound && chatFound) {
+        ++numSuccess;
+        continue;
+      }
+      if (!videoFound && chatFound) {
+        recordingLinkCell.setValue(NOT_FOUND);
+        noRecordingLinks.push(rowNumber);
+      } else if (videoFound && !chatFound) {
+        chatLinkCell.setValue(NOT_FOUND);
+        noChatLinks.push(rowNumber);
+      }
     }
-
-    if (recordingLinkCell.getValue() === "") {
-      recordingLinkCell.setValue(NOT_FOUND);
-      noRecordingLinks.push(rowNumber);
-    }
-    if (chatLinkCell.getValue() === "") {
-      chatLinkCell.setValue(NOT_FOUND);
-      noRecordingLinks.push(rowNumber);
-    }
-
   }
 
   let summary = `Number of rows for which recording and chat links were generated: ${numSuccess}
-  Number of rows for which no recording and chat links were found: ${noRecordingLinks.length}
+  Number of rows for which no recording links were found: ${noRecordingLinks.length}
+  Number of rows for which no chat links were found: ${noChatLinks.length}
   Number of rows skipped: ${numSkipped} (Links were already present or intentionally skipped)
   Number of rows with invalid meeting id: ${invalidMeetings.length}
   Number of rows with no meeting: ${noMeetingRows.length}
@@ -744,10 +732,18 @@ function getRecordingLinks() {
   
   summary += `\n---
 
-  Following rows have no recording and chat links.
+  Following rows have no recording links.
   `;
   for (let i = 0; i < noRecordingLinks.length; ++i) {
     summary += `\nRow ${noRecordingLinks[i]}`;
+  }
+
+  summary += `\n---
+
+  Following rows have no chat links.
+  `;
+  for (let i = 0; i < noChatLinks.length; ++i) {
+    summary += `\nRow ${noChatLinks[i]}`;
   }
 
   summary += `\n---
@@ -761,42 +757,29 @@ function getRecordingLinks() {
 }
 
 function cancelEvents() {
-  let calendar = getCalendar();
-  if (!calendar) {
-    showInfo(TITLE_ERROR, MSG_CALENDAR_NOT_FOUND);
-    return;
-  }
-
-  if (!confirmCalendar(calendar)) {
-    showInfo(TITLE_ERROR, MSG_CALENDAR_REJECTED);
-    return;
-  }
-
-  let activeSheet = SpreadsheetApp.getActiveSheet();
-  let oneToOneData = get1to1Data(activeSheet);
-  if (!oneToOneData) {
-    showInfo(TITLE_ERROR, MSG_COULD_NOT_FETCH_DATA);
+  let setupResult = initSetup();
+  if (!setupResult.success) {
     return;
   }
 
   let canceledRows = [];
   let invalidMeetings = [];
-  for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
+  for (let rowIndex = 0; rowIndex < setupResult.oneToOneData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
-    let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
+    let opsRequestFlag = parseInt(setupResult.activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
     if (opsRequestFlag !== FLAG_CANCEL_INVITE) {
       // This row doesn't need to be canceled
       continue;
     }
 
-    let meetIdCell = activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
+    let meetIdCell = setupResult.activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
     let meetId = meetIdCell.getValue().trim();
     if (meetId === "") {
       // Meeting is not set
       continue;
     }
 
-    let event = getEvent(calendar, meetId);
+    let event = getEvent(setupResult.calendar, meetId);
     if (!event) {
       continue;
     }
@@ -814,9 +797,9 @@ function cancelEvents() {
     }
     canceledRows.push(rowNumber);
     meetIdCell.clearContent();
-    let studentResponseCell = activeSheet.getRange(rowNumber, STUDENT_RESPONSE_INDEX + 1);
+    let studentResponseCell = setupResult.activeSheet.getRange(rowNumber, STUDENT_RESPONSE_INDEX + 1);
     studentResponseCell.clearContent();
-    let mentorResponseCell = activeSheet.getRange(rowNumber, MENTOR_RESPONSE_INDEX + 1);
+    let mentorResponseCell = setupResult.activeSheet.getRange(rowNumber, MENTOR_RESPONSE_INDEX + 1);
     mentorResponseCell.clearContent();
   }
   let summary = `Number of meetings canceled: ${canceledRows.length}
