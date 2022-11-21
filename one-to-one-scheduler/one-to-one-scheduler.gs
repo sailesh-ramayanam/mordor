@@ -36,7 +36,6 @@ const NOT_INVITED = "NOT INVITED";
 const NOT_FOUND = "NOT FOUND";
 const RECORDING_MIME_TYPE = "video/mp4";
 const CHAT_MIME_TYPE = "text/plain";
-const QUERY_DELIMITER = "?";
 
 const MENU_TITLE = "10x 1:1";
 const MENU_INVITES_TO_STUDENTS = "Send invites to students";
@@ -397,27 +396,28 @@ function sendInvitesToStudents() {
   if (!setupResult.success) {
     return;
   }
+  let { calendar, activeSheet, oneToOneData } = setupResult;
 
   let errorRows = [];
   let skippedRows = [];
   let successRows = [];
-  for (let rowIndex = 0; rowIndex < setupResult.oneToOneData.length; ++rowIndex) {
+  for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
-    let opsRequestFlag = parseInt(setupResult.activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
+    let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
     if (opsRequestFlag !== FLAG_SEND_INVITE) {
       // The row should be skipped
       skippedRows.push(rowNumber);
       continue;
     }
 
-    let meetIdCell = setupResult.activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
+    let meetIdCell = activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
     if (meetIdCell.getValue().trim() !== "") {
       // Meeting is already set
       skippedRows.push(rowNumber);
       continue;
     }
 
-    let result = createMeeting(setupResult.calendar, setupResult.oneToOneData[rowIndex]);
+    let result = createMeeting(calendar, oneToOneData[rowIndex]);
     if (!result.eventId) {
       errorRows.push({rowNumber: rowNumber, error: result.errorMsg});
       logBeinDelimiter();
@@ -505,8 +505,9 @@ function getResponses() {
   if (!setupResult.success) {
     return;
   }
+  let { calendar, activeSheet, oneToOneData } = setupResult;
 
-  let responseStats = getResponsesHelper(setupResult.calendar, setupResult.activeSheet, setupResult.oneToOneData);
+  let responseStats = getResponsesHelper(calendar, activeSheet, oneToOneData);
   let summary = `Number of student responses updated: ${responseStats.numStudentsUpdated}
   Number of mentor responses updated: ${responseStats.numMentorsUpdated}
   Number of skipped rows: ${responseStats.skippedRows.length} (meeting was already created previously or skipped intentionally)
@@ -538,17 +539,18 @@ function sendInvitesToMentors() {
   if (!setupResult.success) {
     return;
   }
+  let { calendar, activeSheet, oneToOneData } = setupResult;
 
   let noMeetingRows = [];
   let invalidMeetings = [];
   let invalidEmails = [];
   let numSuccess = 0;
   let numSkipped = 0;
-  let calendarId = setupResult.calendar.getId();
+  let calendarId = calendar.getId();
 
-  for (let rowIndex = 0; rowIndex < setupResult.oneToOneData.length; ++rowIndex) {
+  for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
-    let opsRequestFlag = parseInt(setupResult.activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
+    let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
 
     if (opsRequestFlag !== FLAG_SEND_INVITE) {
       // The row should be skipped
@@ -556,7 +558,7 @@ function sendInvitesToMentors() {
       continue;
     }
 
-    let meetIdCell = setupResult.activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
+    let meetIdCell = activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
     let meetId = meetIdCell.getValue().trim();
     if (meetId === "") {
       // Meeting is not set
@@ -564,13 +566,13 @@ function sendInvitesToMentors() {
       continue;
     }
 
-    let event = getEvent(setupResult.calendar, meetId);
+    let event = getEvent(calendar, meetId);
     if (!event) {
       invalidMeetings.push(rowNumber);
       continue;
     }
     
-    let mentorEmail = setupResult.activeSheet.getRange(rowNumber, MENTOR_EMAIL_INDEX + 1).getValue().trim();
+    let mentorEmail = activeSheet.getRange(rowNumber, MENTOR_EMAIL_INDEX + 1).getValue().trim();
     if (!validateEmail(mentorEmail)) {
       invalidEmails.push({row: rowNumber, email: mentorEmail});
       continue;
@@ -590,7 +592,7 @@ function sendInvitesToMentors() {
   }
 
   // Update the responses so that there is no confusion with older responses
-  getResponsesHelper(setupResult.calendar, setupResult.activeSheet, setupResult.oneToOneData);
+  getResponsesHelper(calendar, activeSheet, oneToOneData);
 
   let summary = `Number of rows for which invites have been sent: ${numSuccess}
   Number of rows skipped: ${numSkipped} (invite was already sent previously or intentionally skipped)
@@ -630,6 +632,7 @@ function getRecordingAndChatLinks() {
   if (!setupResult.success) {
     return;
   }
+  let { calendar, activeSheet, oneToOneData } = setupResult;
 
   let noMeetingRows = [];
   let invalidMeetings = [];
@@ -637,18 +640,18 @@ function getRecordingAndChatLinks() {
   let noChatLinks = [];
   let numSuccess = 0;
   let numSkipped = 0;
-  let calendarId = setupResult.calendar.getId();
+  let calendarId = calendar.getId();
 
-  for (let rowIndex = 0; rowIndex < setupResult.oneToOneData.length; ++rowIndex) {
+  for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
-    let opsRequestFlag = parseInt(setupResult.activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
+    let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
     if (opsRequestFlag !== FLAG_SEND_INVITE) {
       // The row should be skipped
       ++numSkipped;
       continue;
     }
 
-    let meetIdCell = setupResult.activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
+    let meetIdCell = activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
     let meetId = meetIdCell.getValue().trim();
     if (meetId === "") {
       // Meeting is not set
@@ -656,7 +659,7 @@ function getRecordingAndChatLinks() {
       continue;
     }
 
-    let event = getEvent(setupResult.calendar, meetId);
+    let event = getEvent(calendar, meetId);
     if (!event) {
       invalidMeetings.push(rowNumber);
       continue;
@@ -671,8 +674,8 @@ function getRecordingAndChatLinks() {
 
     let eventAttachments = eventResource.attachments;
     
-    let recordingLinkCell = setupResult.activeSheet.getRange(rowNumber, RECORDING_LINK_INDEX + 1);
-    let chatLinkCell = setupResult.activeSheet.getRange(rowNumber, CHAT_LINK_INDEX + 1);
+    let recordingLinkCell = activeSheet.getRange(rowNumber, RECORDING_LINK_INDEX + 1);
+    let chatLinkCell = activeSheet.getRange(rowNumber, CHAT_LINK_INDEX + 1);
 
     if (!eventAttachments) {
       recordingLinkCell.setValue(NOT_FOUND);
@@ -680,37 +683,34 @@ function getRecordingAndChatLinks() {
       noRecordingLinks.push(rowNumber);
       noChatLinks.push(rowNumber);
       continue;
-    } else {
-      let videoFound = false;
-      let chatFound = false;
-      for (let i = 0; i < eventAttachments.length; ++i) {
-        let currentAttachment = eventAttachments[i];
-        let linkUrl = currentAttachment.fileUrl;
-        if (linkUrl) {
-          let queryIndex = linkUrl.indexOf(QUERY_DELIMITER);
-          if (queryIndex > 0) {
-            linkUrl = linkUrl.substring(0,queryIndex);
-          }
-          if (currentAttachment.mimeType === RECORDING_MIME_TYPE) {
-            videoFound = true;
-            recordingLinkCell.setValue(linkUrl);
-          } else if (currentAttachment.mimeType === CHAT_MIME_TYPE) {
-            chatFound = true;
-            chatLinkCell.setValue(linkUrl);
-          }
-        }
-      }
-      if (videoFound && chatFound) {
-        ++numSuccess;
+    }
+    let videoFound = false;
+    let chatFound = false;
+    for (let i = 0; i < eventAttachments.length; ++i) {
+      let currentAttachment = eventAttachments[i];
+      let linkUrl = currentAttachment.fileUrl;
+      if (!currentAttachment || !linkUrl) {
         continue;
       }
-      if (!videoFound && chatFound) {
-        recordingLinkCell.setValue(NOT_FOUND);
-        noRecordingLinks.push(rowNumber);
-      } else if (videoFound && !chatFound) {
-        chatLinkCell.setValue(NOT_FOUND);
-        noChatLinks.push(rowNumber);
+      if (currentAttachment.mimeType === RECORDING_MIME_TYPE) {
+        videoFound = true;
+        recordingLinkCell.setValue(linkUrl);
+      } else if (currentAttachment.mimeType === CHAT_MIME_TYPE) {
+        chatFound = true;
+        chatLinkCell.setValue(linkUrl);
       }
+    }
+    if (videoFound && chatFound) {
+      ++numSuccess;
+      continue;
+    }
+    if (!videoFound) {
+      recordingLinkCell.setValue(NOT_FOUND);
+      noRecordingLinks.push(rowNumber);
+    }
+    if (!chatFound) {
+      chatLinkCell.setValue(NOT_FOUND);
+      noChatLinks.push(rowNumber);
     }
   }
 
@@ -761,25 +761,26 @@ function cancelEvents() {
   if (!setupResult.success) {
     return;
   }
+  let { calendar, activeSheet, oneToOneData } = setupResult;
 
   let canceledRows = [];
   let invalidMeetings = [];
-  for (let rowIndex = 0; rowIndex < setupResult.oneToOneData.length; ++rowIndex) {
+  for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
-    let opsRequestFlag = parseInt(setupResult.activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
+    let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
     if (opsRequestFlag !== FLAG_CANCEL_INVITE) {
       // This row doesn't need to be canceled
       continue;
     }
 
-    let meetIdCell = setupResult.activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
+    let meetIdCell = activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
     let meetId = meetIdCell.getValue().trim();
     if (meetId === "") {
       // Meeting is not set
       continue;
     }
 
-    let event = getEvent(setupResult.calendar, meetId);
+    let event = getEvent(calendar, meetId);
     if (!event) {
       continue;
     }
@@ -797,9 +798,9 @@ function cancelEvents() {
     }
     canceledRows.push(rowNumber);
     meetIdCell.clearContent();
-    let studentResponseCell = setupResult.activeSheet.getRange(rowNumber, STUDENT_RESPONSE_INDEX + 1);
+    let studentResponseCell = activeSheet.getRange(rowNumber, STUDENT_RESPONSE_INDEX + 1);
     studentResponseCell.clearContent();
-    let mentorResponseCell = setupResult.activeSheet.getRange(rowNumber, MENTOR_RESPONSE_INDEX + 1);
+    let mentorResponseCell = activeSheet.getRange(rowNumber, MENTOR_RESPONSE_INDEX + 1);
     mentorResponseCell.clearContent();
   }
   let summary = `Number of meetings canceled: ${canceledRows.length}
