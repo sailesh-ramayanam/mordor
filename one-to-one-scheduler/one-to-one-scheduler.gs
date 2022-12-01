@@ -5,20 +5,21 @@ const LAST_PUBLISHED_VERSION = 6;
  * These are 0-based indices. Do not confuse them with column numbers.
  * First column will have index as 0.
  */
-const MODULE_NAME_INDEX = 0;
-const STUDENT_NAME_INDEX = 1;
-const STUDENT_EMAIL_INDEX = 2;
-const DATE_INDEX = 3;
-const START_TIME_INDEX = 4;
-const END_TIME_INDEX = 5;
-const MEETING_ID_INDEX = 6;
-const STUDENT_RESPONSE_INDEX = 7;
-const OPS_REQUEST_INDEX = 8;
-const SSM_EMAILS_INDEX = 9;
-const MENTOR_EMAIL_INDEX = 10;
-const MENTOR_RESPONSE_INDEX = 11;
-const RECORDING_LINK_INDEX = 12;
-const CHAT_LINK_INDEX = 13;
+const SESSION_TYPE_INDEX = 0;
+const MODULE_NAME_INDEX = 1;
+const STUDENT_NAME_INDEX = 2;
+const STUDENT_EMAIL_INDEX = 3;
+const DATE_INDEX = 4;
+const START_TIME_INDEX = 5;
+const END_TIME_INDEX = 6;
+const MEETING_ID_INDEX = 7;
+const STUDENT_RESPONSE_INDEX = 8;
+const OPS_REQUEST_INDEX = 9;
+const SSM_EMAILS_INDEX = 10;
+const MENTOR_EMAIL_INDEX = 11;
+const MENTOR_RESPONSE_INDEX = 12;
+const RECORDING_LINK_INDEX = 13;
+const CHAT_LINK_INDEX = 14;
 /**
  * If you add/remove/modify columns, you must also change
  * 1. DATA_END_COLUMN
@@ -60,25 +61,26 @@ Version: ${LAST_PUBLISHED_VERSION + 1}
 
 - Your sheet must have the following columns in the given order
 
-1. Module Name - Name of the Module. To be filled by the team.
-2. Student Name - Name of the student. To be filled by the team.
-3. Student Email - Email id of the student. To be filled by the team.
-4. Date - Date of 1:1 in yyyy-mm-dd format. To be filled by the team.
-5. Start time - Start time of 1:1 in hh:mm format (24 hours). To be filled by the team.
-6. End time - End time of 1:1 in hh:mm format (24 hours). To be filled by the team.
-7. Meeting link - Auto populated by the script.
-8. Student response - Auto populated by the script.
-9. Ops Request - (0 - ignore the row),(1 - for meet invites),(2 - for Cancel Meeting) To be filled by the team.
-10. SSM emails - Additional emails you want to include in the meeting - Comma separated values.
-11. Mentor email - Email id of the mentor. To be filled by the team.
-12. Mentor response - Auto populated by the script.
-13. Recording Link - Auto populated by the script.
-14. Chat Link - Auto populated by the script.
+1. Session Type - (1:1 or Mock Interview). To be filled by the team.
+2. Module Name - Name of the Module/ Name of the Mock. To be filled by the team.
+3. Student Name - Name of the student. To be filled by the team.
+4. Student Email - Email id of the student. To be filled by the team.
+5. Date - Date of 1:1 in yyyy-mm-dd format. To be filled by the team.
+6. Start time - Start time of 1:1 in hh:mm format (24 hours). To be filled by the team.
+7. End time - End time of 1:1 in hh:mm format (24 hours). To be filled by the team.
+8. Meeting link - Auto populated by the script.
+9. Student response - Auto populated by the script.
+10. Ops Request - (0 - ignore the row),(1 - for meet invites),(2 - for Cancel Meeting) To be filled by the team.
+11. SSM emails - Additional emails you want to include in the meeting - Comma separated values.
+12. Mentor email - Email id of the mentor. To be filled by the team.
+13. Mentor response - Auto populated by the script.
+14. Recording Link - Auto populated by the script.
+15. Chat Link - Auto populated by the script.
 `;
 
 const DATE_DELIMITER = "-";
 
-const MEETING_TITLE_PREFIX = " - 1:1 (";
+const DEFAULT_SESSION_TYPE = "1:1";
 const MEETING_TITLE_SUFFIX = ") - 10x Academy"
 const MEETING_FIRST_REMINDER_MINUTES = 60;
 const MEETING_SECOND_REMINDER_MINUTES = 30;
@@ -319,13 +321,19 @@ function createMeeting(calendar, details) {
     studentName = studentEmail;
   }
 
+  let sessionType = details[SESSION_TYPE_INDEX].trim();
+  if (sessionType.length === 0) {
+    // If Session type is not given, we will take session type as 1:1
+    sessionType = DEFAULT_SESSION_TYPE;
+  }
+  
   let moduleName = details[MODULE_NAME_INDEX].trim();
   if (moduleName.length === 0) {
     // If Module name is not given, we will take module name as Session
     moduleName = "Session";
   }
 
-  let title = studentName + MEETING_TITLE_PREFIX + moduleName + MEETING_TITLE_SUFFIX;
+  let title = studentName + " - " + sessionType + " (" + moduleName + MEETING_TITLE_SUFFIX;
 
   let meetDate = parseDate(details[DATE_INDEX]);
   if (!meetDate) {
