@@ -27,7 +27,7 @@ const CHAT_LINK_INDEX = 14;
  */
 
 const DATA_BEGIN_ROW = 2;
-const DATA_END_COLUMN = "N";
+const DATA_END_COLUMN = "O";
 
 const FLAG_IGNORE_ROW = 0;
 const FLAG_SEND_INVITE = 1;
@@ -80,7 +80,7 @@ Version: ${LAST_PUBLISHED_VERSION + 1}
 
 const DATE_DELIMITER = "-";
 
-const DEFAULT_SESSION_TYPE = "1:1";
+const MEETING_DEFAULT_TYPE = "1:1";
 const MEETING_TITLE_SUFFIX = ") - 10x Academy"
 const MEETING_FIRST_REMINDER_MINUTES = 60;
 const MEETING_SECOND_REMINDER_MINUTES = 30;
@@ -326,7 +326,7 @@ function createMeeting(calendar, details) {
     // If Session type is not given, we will take session type as 1:1
     sessionType = DEFAULT_SESSION_TYPE;
   }
-  
+
   let moduleName = details[MODULE_NAME_INDEX].trim();
   if (moduleName.length === 0) {
     // If Module name is not given, we will take module name as Session
@@ -696,16 +696,15 @@ function getRecordingAndChatLinks() {
     let chatFound = false;
     for (let i = 0; i < eventAttachments.length; ++i) {
       let currentAttachment = eventAttachments[i];
-      let linkUrl = currentAttachment.fileUrl;
-      if (!currentAttachment || !linkUrl) {
+      if (!currentAttachment.fileUrl) {
         continue;
       }
       if (currentAttachment.mimeType === RECORDING_MIME_TYPE) {
         videoFound = true;
-        recordingLinkCell.setValue(linkUrl);
+        recordingLinkCell.setValue(currentAttachment.fileUrl);
       } else if (currentAttachment.mimeType === CHAT_MIME_TYPE) {
         chatFound = true;
-        chatLinkCell.setValue(linkUrl);
+        chatLinkCell.setValue(currentAttachment.fileUrl);
       }
     }
     if (videoFound && chatFound) {
