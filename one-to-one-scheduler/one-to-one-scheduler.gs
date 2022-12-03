@@ -5,18 +5,21 @@ const LAST_PUBLISHED_VERSION = 6;
  * These are 0-based indices. Do not confuse them with column numbers.
  * First column will have index as 0.
  */
-const MODULE_NAME_INDEX = 0;
-const STUDENT_NAME_INDEX = 1;
-const STUDENT_EMAIL_INDEX = 2;
-const DATE_INDEX = 3;
-const START_TIME_INDEX = 4;
-const END_TIME_INDEX = 5;
-const MEETING_ID_INDEX = 6;
-const STUDENT_RESPONSE_INDEX = 7;
-const OPS_REQUEST_INDEX = 8;
-const SSM_EMAILS_INDEX = 9;
-const MENTOR_EMAIL_INDEX = 10;
-const MENTOR_RESPONSE_INDEX = 11;
+const SESSION_TYPE_INDEX = 0;
+const MODULE_NAME_INDEX = 1;
+const STUDENT_NAME_INDEX = 2;
+const STUDENT_EMAIL_INDEX = 3;
+const DATE_INDEX = 4;
+const START_TIME_INDEX = 5;
+const END_TIME_INDEX = 6;
+const MEETING_ID_INDEX = 7;
+const STUDENT_RESPONSE_INDEX = 8;
+const OPS_REQUEST_INDEX = 9;
+const SSM_EMAILS_INDEX = 10;
+const MENTOR_EMAIL_INDEX = 11;
+const MENTOR_RESPONSE_INDEX = 12;
+const RECORDING_LINK_INDEX = 13;
+const CHAT_LINK_INDEX = 14;
 /**
  * If you add/remove/modify columns, you must also change
  * 1. DATA_END_COLUMN
@@ -24,18 +27,22 @@ const MENTOR_RESPONSE_INDEX = 11;
  */
 
 const DATA_BEGIN_ROW = 2;
-const DATA_END_COLUMN = "L";
+const DATA_END_COLUMN = "O";
 
 const FLAG_IGNORE_ROW = 0;
 const FLAG_SEND_INVITE = 1;
 const FLAG_CANCEL_INVITE = 2;
 
 const NOT_INVITED = "NOT INVITED";
+const NOT_FOUND = "NOT FOUND";
+const RECORDING_MIME_TYPE = "video/mp4";
+const CHAT_MIME_TYPE = "text/plain";
 
 const MENU_TITLE = "10x 1:1";
 const MENU_INVITES_TO_STUDENTS = "Send invites to students";
 const MENU_GET_RESPONSES = "Get responses";
 const MENU_INVITES_TO_MENTORS = "Send invites to mentors";
+const MENU_GET_RECORDING_AND_CHAT_LINKS = "Get recording and chat links"
 const MENU_CANCEL_MEETINGS = "Cancel meetings";
 const MENU_HELP = "Help";
 
@@ -54,23 +61,26 @@ Version: ${LAST_PUBLISHED_VERSION + 1}
 
 - Your sheet must have the following columns in the given order
 
-1. Module Name - Name of the Module. To be filled by the team.
-2. Student Name - Name of the student. To be filled by the team.
-3. Student Email - Email id of the student. To be filled by the team.
-4. Date - Date of 1:1 in yyyy-mm-dd format. To be filled by the team.
-5. Start time - Start time of 1:1 in hh:mm format (24 hours). To be filled by the team.
-6. End time - End time of 1:1 in hh:mm format (24 hours). To be filled by the team.
-7. Meeting link - Auto populated by the script.
-8. Student response - Auto populated by the script.
-9. Ops Request - (0 - ignore the row),(1 - for meet invites),(2 - for Cancel Meeting) To be filled by the team.
-10. SSM emails - Additional emails you want to include in the meeting - Comma separated values.
-11. Mentor email - Email id of the mentor. To be filled by the team.
-12. Mentor response - Auto populated by the script.
+1. Session Type - (1:1 or Mock Interview). To be filled by the team.
+2. Module Name - Name of the Module/ Name of the Mock. To be filled by the team.
+3. Student Name - Name of the student. To be filled by the team.
+4. Student Email - Email id of the student. To be filled by the team.
+5. Date - Date of 1:1 in yyyy-mm-dd format. To be filled by the team.
+6. Start time - Start time of 1:1 in hh:mm format (24 hours). To be filled by the team.
+7. End time - End time of 1:1 in hh:mm format (24 hours). To be filled by the team.
+8. Meeting link - Auto populated by the script.
+9. Student response - Auto populated by the script.
+10. Ops Request - (0 - ignore the row),(1 - for meet invites),(2 - for Cancel Meeting) To be filled by the team.
+11. SSM emails - Additional emails you want to include in the meeting - Comma separated values.
+12. Mentor email - Email id of the mentor. To be filled by the team.
+13. Mentor response - Auto populated by the script.
+14. Recording Link - Auto populated by the script.
+15. Chat Link - Auto populated by the script.
 `;
 
 const DATE_DELIMITER = "-";
 
-const MEETING_TITLE_PREFIX = " - 1:1 (";
+const MEETING_DEFAULT_TYPE = "1:1";
 const MEETING_TITLE_SUFFIX = ") - 10x Academy"
 const MEETING_FIRST_REMINDER_MINUTES = 60;
 const MEETING_SECOND_REMINDER_MINUTES = 30;
@@ -94,6 +104,7 @@ function onOpen(e) {
   .addItem(MENU_INVITES_TO_STUDENTS, "sendInvitesToStudents")
   .addItem(MENU_GET_RESPONSES, "getResponses")
   .addItem(MENU_INVITES_TO_MENTORS, "sendInvitesToMentors")
+  .addItem(MENU_GET_RECORDING_AND_CHAT_LINKS, "getRecordingAndChatLinks")
   .addItem(MENU_CANCEL_MEETINGS, "cancelEvents")
   .addItem(MENU_HELP, "help")
   .addToUi();
@@ -251,6 +262,34 @@ function get1to1Data(sheet) {
   }
 }
 
+function initSetup() {
+  let result = {
+    success: false,
+    calendar: null,
+    activeSheet: null,
+    oneToOneData: null
+  };
+  result.calendar = getCalendar();
+  if (!result.calendar) {
+    showInfo(TITLE_ERROR, MSG_CALENDAR_NOT_FOUND);
+    return result;
+  }
+
+  if (!confirmCalendar(result.calendar)) {
+    showInfo(TITLE_ERROR, MSG_CALENDAR_REJECTED);
+    return result;
+  }
+
+  result.activeSheet = SpreadsheetApp.getActiveSheet();
+  result.oneToOneData = get1to1Data(result.activeSheet);
+  if (!result.oneToOneData) {
+    showInfo(TITLE_ERROR, MSG_COULD_NOT_FETCH_DATA);
+    return result;
+  }
+  result.success = true;
+  return result;
+}
+
 function createMeeting(calendar, details) {
   let result = {errorMsg: "", eventId: null};
 
@@ -282,13 +321,19 @@ function createMeeting(calendar, details) {
     studentName = studentEmail;
   }
 
+  let sessionType = details[SESSION_TYPE_INDEX].trim();
+  if (sessionType.length === 0) {
+    // If Session type is not given, we will take session type as 1:1
+    sessionType = MEETING_DEFAULT_TYPE;
+  }
+
   let moduleName = details[MODULE_NAME_INDEX].trim();
   if (moduleName.length === 0) {
     // If Module name is not given, we will take module name as Session
     moduleName = "Session";
   }
 
-  let title = studentName + MEETING_TITLE_PREFIX + moduleName + MEETING_TITLE_SUFFIX;
+  let title = studentName + " - " + sessionType + " (" + moduleName + MEETING_TITLE_SUFFIX;
 
   let meetDate = parseDate(details[DATE_INDEX]);
   if (!meetDate) {
@@ -320,7 +365,7 @@ function createMeeting(calendar, details) {
     let event = calendar.createEvent(title, meetStart, meetEnd, {guests: guestList, sendInvites: true});
     event.setGuestsCanInviteOthers(false)
     .setGuestsCanModify(false)
-    .setGuestsCanSeeGuests(false);
+    .setGuestsCanSeeGuests(true);
 
     result.eventId = event.getId().replace("@google.com", "");
   } catch (error) {
@@ -355,23 +400,11 @@ function addAttendees(calendarId, meetId, emails) {
 }
 
 function sendInvitesToStudents() {
-  let calendar = getCalendar();
-  if (!calendar) {
-    showInfo(TITLE_ERROR, MSG_CALENDAR_NOT_FOUND);
+  let setupResult = initSetup();
+  if (!setupResult.success) {
     return;
   }
-
-  if (!confirmCalendar(calendar)) {
-    showInfo(TITLE_ERROR, MSG_CALENDAR_REJECTED);
-    return;
-  }
-
-  let activeSheet = SpreadsheetApp.getActiveSheet();
-  let oneToOneData = get1to1Data(activeSheet);
-  if (!oneToOneData) {
-    showInfo(TITLE_ERROR, MSG_COULD_NOT_FETCH_DATA);
-    return;
-  }
+  let { calendar, activeSheet, oneToOneData } = setupResult;
 
   let errorRows = [];
   let skippedRows = [];
@@ -476,23 +509,11 @@ function getResponsesHelper(calendar, sheet, oneToOneData) {
 }
 
 function getResponses() {
-  let calendar = getCalendar();
-  if (!calendar) {
-    showInfo(TITLE_ERROR, MSG_CALENDAR_NOT_FOUND);
+  let setupResult = initSetup();
+  if (!setupResult.success) {
     return;
   }
-
-  if (!confirmCalendar(calendar)) {
-    showInfo(TITLE_ERROR, MSG_CALENDAR_REJECTED);
-    return;
-  }
-
-  let activeSheet = SpreadsheetApp.getActiveSheet();
-  let oneToOneData = get1to1Data(activeSheet);
-  if (!oneToOneData) {
-    showInfo(TITLE_ERROR, MSG_COULD_NOT_FETCH_DATA);
-    return;
-  }
+  let { calendar, activeSheet, oneToOneData } = setupResult;
 
   let responseStats = getResponsesHelper(calendar, activeSheet, oneToOneData);
   let summary = `Number of student responses updated: ${responseStats.numStudentsUpdated}
@@ -522,23 +543,11 @@ function getResponses() {
 }
 
 function sendInvitesToMentors() {
-  let calendar = getCalendar();
-  if (!calendar) {
-    showInfo(TITLE_ERROR, MSG_CALENDAR_NOT_FOUND);
+  let setupResult = initSetup();
+  if (!setupResult.success) {
     return;
   }
-
-  if (!confirmCalendar(calendar)) {
-    showInfo(TITLE_ERROR, MSG_CALENDAR_REJECTED);
-    return;
-  }
-
-  let activeSheet = SpreadsheetApp.getActiveSheet();
-  let oneToOneData = get1to1Data(activeSheet);
-  if (!oneToOneData) {
-    showInfo(TITLE_ERROR, MSG_COULD_NOT_FETCH_DATA);
-    return;
-  }
+  let { calendar, activeSheet, oneToOneData } = setupResult;
 
   let noMeetingRows = [];
   let invalidMeetings = [];
@@ -626,24 +635,140 @@ function sendInvitesToMentors() {
   showInfo(TITLE_SUCCESS, summary);
 }
 
+function getRecordingAndChatLinks() {
+  let setupResult = initSetup();
+  if (!setupResult.success) {
+    return;
+  }
+  let { calendar, activeSheet, oneToOneData } = setupResult;
+
+  let noMeetingRows = [];
+  let invalidMeetings = [];
+  let noRecordingLinks = [];
+  let noChatLinks = [];
+  let numSuccess = 0;
+  let numSkipped = 0;
+  let calendarId = calendar.getId();
+
+  for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
+    let rowNumber = rowIndex + DATA_BEGIN_ROW;
+    let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
+    if (opsRequestFlag !== FLAG_SEND_INVITE) {
+      // The row should be skipped
+      ++numSkipped;
+      continue;
+    }
+
+    let meetIdCell = activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
+    let meetId = meetIdCell.getValue().trim();
+    if (meetId === "") {
+      // Meeting is not set
+      noMeetingRows.push(rowNumber);
+      continue;
+    }
+
+    let event = getEvent(calendar, meetId);
+    if (!event) {
+      invalidMeetings.push(rowNumber);
+      continue;
+    }
+
+    let eventResource = Calendar.Events.get(calendarId, meetId);
+    if (!eventResource) {
+      console.log("Event could not be retrieved - " + calendarId + ", " + meetId);
+      invalidMeetings.push(rowNumber);
+      continue;
+    }
+
+    let eventAttachments = eventResource.attachments;
+    
+    let recordingLinkCell = activeSheet.getRange(rowNumber, RECORDING_LINK_INDEX + 1);
+    let chatLinkCell = activeSheet.getRange(rowNumber, CHAT_LINK_INDEX + 1);
+
+    if (!eventAttachments) {
+      recordingLinkCell.setValue(NOT_FOUND);
+      chatLinkCell.setValue(NOT_FOUND);
+      noRecordingLinks.push(rowNumber);
+      noChatLinks.push(rowNumber);
+      continue;
+    }
+    let videoFound = false;
+    let chatFound = false;
+    for (let i = 0; i < eventAttachments.length; ++i) {
+      let currentAttachment = eventAttachments[i];
+      if (!currentAttachment || !currentAttachment.fileUrl) {
+        continue;
+      }
+      if (currentAttachment.mimeType === RECORDING_MIME_TYPE) {
+        videoFound = true;
+        recordingLinkCell.setValue(currentAttachment.fileUrl);
+      } else if (currentAttachment.mimeType === CHAT_MIME_TYPE) {
+        chatFound = true;
+        chatLinkCell.setValue(currentAttachment.fileUrl);
+      }
+    }
+    if (videoFound && chatFound) {
+      ++numSuccess;
+      continue;
+    }
+    if (!videoFound) {
+      recordingLinkCell.setValue(NOT_FOUND);
+      noRecordingLinks.push(rowNumber);
+    }
+    if (!chatFound) {
+      chatLinkCell.setValue(NOT_FOUND);
+      noChatLinks.push(rowNumber);
+    }
+  }
+
+  let summary = `Number of rows for which recording and chat links were generated: ${numSuccess}
+  Number of rows for which no recording links were found: ${noRecordingLinks.length}
+  Number of rows for which no chat links were found: ${noChatLinks.length}
+  Number of rows skipped: ${numSkipped} (Links were already present or intentionally skipped)
+  Number of rows with invalid meeting id: ${invalidMeetings.length}
+  Number of rows with no meeting: ${noMeetingRows.length}
+  `;
+  
+  summary += `\n---
+
+  Following rows have invalid meeting id.
+  `;
+  for (let i = 0; i < invalidMeetings.length; ++i) {
+    summary += `\nRow ${invalidMeetings[i]}`;
+  }
+  
+  summary += `\n---
+
+  Following rows have no recording links.
+  `;
+  for (let i = 0; i < noRecordingLinks.length; ++i) {
+    summary += `\nRow ${noRecordingLinks[i]}`;
+  }
+
+  summary += `\n---
+
+  Following rows have no chat links.
+  `;
+  for (let i = 0; i < noChatLinks.length; ++i) {
+    summary += `\nRow ${noChatLinks[i]}`;
+  }
+
+  summary += `\n---
+
+  Following rows have no meeting.
+  `;
+  for (let i = 0; i < noMeetingRows.length; ++i) {
+    summary += `\nRow ${noMeetingRows[i]}`;
+  }
+  showInfo(TITLE_SUCCESS, summary);
+}
+
 function cancelEvents() {
-  let calendar = getCalendar();
-  if (!calendar) {
-    showInfo(TITLE_ERROR, MSG_CALENDAR_NOT_FOUND);
+  let setupResult = initSetup();
+  if (!setupResult.success) {
     return;
   }
-
-  if (!confirmCalendar(calendar)) {
-    showInfo(TITLE_ERROR, MSG_CALENDAR_REJECTED);
-    return;
-  }
-
-  let activeSheet = SpreadsheetApp.getActiveSheet();
-  let oneToOneData = get1to1Data(activeSheet);
-  if (!oneToOneData) {
-    showInfo(TITLE_ERROR, MSG_COULD_NOT_FETCH_DATA);
-    return;
-  }
+  let { calendar, activeSheet, oneToOneData } = setupResult;
 
   let canceledRows = [];
   let invalidMeetings = [];
