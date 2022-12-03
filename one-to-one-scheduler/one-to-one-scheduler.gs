@@ -324,7 +324,7 @@ function createMeeting(calendar, details) {
   let sessionType = details[SESSION_TYPE_INDEX].trim();
   if (sessionType.length === 0) {
     // If Session type is not given, we will take session type as 1:1
-    sessionType = DEFAULT_SESSION_TYPE;
+    sessionType = MEETING_DEFAULT_TYPE;
   }
 
   let moduleName = details[MODULE_NAME_INDEX].trim();
@@ -696,7 +696,7 @@ function getRecordingAndChatLinks() {
     let chatFound = false;
     for (let i = 0; i < eventAttachments.length; ++i) {
       let currentAttachment = eventAttachments[i];
-      if (!currentAttachment.fileUrl) {
+      if (!currentAttachment || !currentAttachment.fileUrl) {
         continue;
       }
       if (currentAttachment.mimeType === RECORDING_MIME_TYPE) {
