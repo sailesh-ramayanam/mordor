@@ -5,7 +5,7 @@ const LAST_PUBLISHED_VERSION = 7;
  * These are 0-based indices. Do not confuse them with column numbers.
  * First column will have index as 0.
  */
-const SESSION_TYPE_INDEX = 0;
+const MEETING_TYPE_INDEX = 0;
 const MODULE_NAME_INDEX = 1;
 const STUDENT_NAME_INDEX = 2;
 const STUDENT_EMAIL_INDEX = 3;
@@ -13,13 +13,14 @@ const DATE_INDEX = 4;
 const START_TIME_INDEX = 5;
 const END_TIME_INDEX = 6;
 const MEETING_ID_INDEX = 7;
-const STUDENT_RESPONSE_INDEX = 8;
-const OPS_REQUEST_INDEX = 9;
-const SSM_EMAILS_INDEX = 10;
-const MENTOR_EMAIL_INDEX = 11;
-const MENTOR_RESPONSE_INDEX = 12;
-const RECORDING_LINK_INDEX = 13;
-const CHAT_LINK_INDEX = 14;
+const MEETING_LINK_INDEX = 8;
+const STUDENT_RESPONSE_INDEX = 9;
+const OPS_REQUEST_INDEX = 10;
+const SSM_EMAILS_INDEX = 11;
+const MENTOR_EMAIL_INDEX = 12;
+const MENTOR_RESPONSE_INDEX = 13;
+const RECORDING_LINK_INDEX = 14;
+const CHAT_LINK_INDEX = 15;
 /**
  * If you add/remove/modify columns, you must also change
  * 1. DATA_END_COLUMN
@@ -27,7 +28,7 @@ const CHAT_LINK_INDEX = 14;
  */
 
 const DATA_BEGIN_ROW = 2;
-const DATA_END_COLUMN = "O";
+const DATA_END_COLUMN = "P";
 
 const FLAG_IGNORE_ROW = 0;
 const FLAG_SEND_INVITE = 1;
@@ -61,27 +62,33 @@ Version: ${LAST_PUBLISHED_VERSION + 1}
 
 - Your sheet must have the following columns in the given order
 
-1. Session Type - (1:1 or Mock Interview). To be filled by the team.
+1. Meeting Type - (1:1 or Mock Interview). To be filled by the team.
 2. Module Name - Name of the Module/ Name of the Mock. To be filled by the team.
 3. Student Name - Name of the student. To be filled by the team.
 4. Student Email - Email id of the student. To be filled by the team.
 5. Date - Date of 1:1 in yyyy-mm-dd format. To be filled by the team.
 6. Start time - Start time of 1:1 in hh:mm format (24 hours). To be filled by the team.
 7. End time - End time of 1:1 in hh:mm format (24 hours). To be filled by the team.
-8. Meeting link - Auto populated by the script.
-9. Student response - Auto populated by the script.
-10. Ops Request - (0 - ignore the row),(1 - for meet invites),(2 - for Cancel Meeting) To be filled by the team.
-11. SSM emails - Additional emails you want to include in the meeting - Comma separated values.
-12. Mentor email - Email id of the mentor. To be filled by the team.
-13. Mentor response - Auto populated by the script.
-14. Recording Link - Auto populated by the script.
-15. Chat Link - Auto populated by the script.
+8. Meeting Id - Auto populated by the script.
+9. Meeting link - Auto populated by the script.
+10. Student response - Auto populated by the script.
+11. Ops Request - (0 - ignore the row),(1 - for meet invites),(2 - for Cancel Meeting) To be filled by the team.
+12. SSM emails - Additional emails you want to include in the meeting - Comma separated values.
+13. Mentor email - Email id of the mentor. To be filled by the team.
+14. Mentor response - Auto populated by the script.
+15. Recording Link - Auto populated by the script.
+16. Chat Link - Auto populated by the script.
+
+NOTE:
+Meeting Title Format:
+- Student Name | Meeting Type | Module Name - 10x Academy
 `;
 
 const DATE_DELIMITER = "-";
 
 const MEETING_DEFAULT_TYPE = "1:1";
-const MEETING_TITLE_SUFFIX = ") - 10x Academy"
+const MEETING_TITLE_DELIMITER = " | ";
+const MEETING_TITLE_SUFFIX = " - 10x Academy"
 const MEETING_FIRST_REMINDER_MINUTES = 60;
 const MEETING_SECOND_REMINDER_MINUTES = 30;
 
@@ -290,8 +297,19 @@ function initSetup() {
   return result;
 }
 
+function getEventResource(calendarId, meetId) {
+  try {
+    let eventResource = Calendar.Events.get(calendarId, meetId);
+    return eventResource;
+  } catch (error) {
+    console.log("Event could not be retrieved - " + calendarId + ", " + meetId);
+    console.log(error.toString());
+    return null;
+  }
+}
+
 function createMeeting(calendar, details) {
-  let result = {errorMsg: "", eventId: null};
+  let result = {errorMsg: "", eventId: null, eventLink: null};
 
   if (!calendar) {
     result.errorMsg = MSG_CALENDAR_NOT_FOUND;
@@ -321,10 +339,10 @@ function createMeeting(calendar, details) {
     studentName = studentEmail;
   }
 
-  let sessionType = details[SESSION_TYPE_INDEX].trim();
-  if (sessionType.length === 0) {
+  let meetingType = details[MEETING_TYPE_INDEX].trim();
+  if (meetingType.length === 0) {
     // If Session type is not given, we will take session type as 1:1
-    sessionType = MEETING_DEFAULT_TYPE;
+    meetingType = MEETING_DEFAULT_TYPE;
   }
 
   let moduleName = details[MODULE_NAME_INDEX].trim();
@@ -333,7 +351,7 @@ function createMeeting(calendar, details) {
     moduleName = "Session";
   }
 
-  let title = studentName + " - " + sessionType + " (" + moduleName + MEETING_TITLE_SUFFIX;
+  let title = studentName + MEETING_TITLE_DELIMITER + meetingType + MEETING_TITLE_DELIMITER + moduleName + MEETING_TITLE_SUFFIX;
 
   let meetDate = parseDate(details[DATE_INDEX]);
   if (!meetDate) {
@@ -368,6 +386,12 @@ function createMeeting(calendar, details) {
     .setGuestsCanSeeGuests(true);
 
     result.eventId = event.getId().replace("@google.com", "");
+    let eventResource = getEventResource(calendar.getId(), result.eventId);
+    if (!eventResource) {
+      result.errorMsg = "Event could not be retrieved - " + calendarId + ", " + meetId;
+      return result;
+    }
+    result.eventLink = eventResource.hangoutLink;
   } catch (error) {
     result.errorMsg = "Event creation failed. " + error.toString();
   }
@@ -377,9 +401,8 @@ function createMeeting(calendar, details) {
 function addAttendees(calendarId, meetId, emails) {
   try {
     // Do not use addGuest method. It won't send emails to new guests.
-    let eventResource = Calendar.Events.get(calendarId, meetId);
+    let eventResource = getEventResource(calendarId, meetId);
     if (!eventResource) {
-      console.log("Event could not be retrieved - " + calendarId + ", " + meetId);
       return false;
     }
     if (!eventResource.attendees) {
@@ -419,6 +442,7 @@ function sendInvitesToStudents() {
     }
 
     let meetIdCell = activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
+    let meetLinkCell = activeSheet.getRange(rowNumber, MEETING_LINK_INDEX + 1);
     if (meetIdCell.getValue().trim() !== "") {
       // Meeting is already set
       skippedRows.push(rowNumber);
@@ -435,6 +459,7 @@ function sendInvitesToStudents() {
       continue;
     }
     meetIdCell.setValue(result.eventId);
+    meetLinkCell.setValue(result.eventLink);
     successRows.push(rowNumber);
   }
 
@@ -673,9 +698,8 @@ function getRecordingAndChatLinks() {
       continue;
     }
 
-    let eventResource = Calendar.Events.get(calendarId, meetId);
+    let eventResource = getEventResource(calendarId, meetId);
     if (!eventResource) {
-      console.log("Event could not be retrieved - " + calendarId + ", " + meetId);
       invalidMeetings.push(rowNumber);
       continue;
     }
@@ -781,6 +805,7 @@ function cancelEvents() {
     }
 
     let meetIdCell = activeSheet.getRange(rowNumber, MEETING_ID_INDEX + 1);
+    let meetLinkCell = activeSheet.getRange(rowNumber, MEETING_LINK_INDEX + 1);
     let meetId = meetIdCell.getValue().trim();
     if (meetId === "") {
       // Meeting is not set
@@ -805,6 +830,7 @@ function cancelEvents() {
     }
     canceledRows.push(rowNumber);
     meetIdCell.clearContent();
+    meetLinkCell.clearContent();
     let studentResponseCell = activeSheet.getRange(rowNumber, STUDENT_RESPONSE_INDEX + 1);
     studentResponseCell.clearContent();
     let mentorResponseCell = activeSheet.getRange(rowNumber, MENTOR_RESPONSE_INDEX + 1);
