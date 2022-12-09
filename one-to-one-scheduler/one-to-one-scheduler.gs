@@ -387,11 +387,9 @@ function createMeeting(calendar, details) {
 
     result.eventId = event.getId().replace("@google.com", "");
     let eventResource = getEventResource(calendar.getId(), result.eventId);
-    if (!eventResource) {
-      result.errorMsg = "Event could not be retrieved - " + calendarId + ", " + meetId;
-      return result;
+    if (eventResource) {
+      result.eventLink = eventResource.hangoutLink;
     }
-    result.eventLink = eventResource.hangoutLink;
   } catch (error) {
     result.errorMsg = "Event creation failed. " + error.toString();
   }
