@@ -1,5 +1,5 @@
 // Whenever you publish a new version of the add-on, you must increment the below version number. This helps for book-keeping and comparing with previous versions.
-const LAST_PUBLISHED_VERSION = 7;
+const LAST_PUBLISHED_VERSION = 8;
 
 /**
  * These are 0-based indices. Do not confuse them with column numbers.
@@ -243,10 +243,14 @@ function validateEmail(email) {
     return false;
   }
 }
-
-function getEvent(calendar, meetId) {
+/**
+ * A meet can have 2 different types of ids.
+ * Be careful while using this method. It requires iCalID.
+ * Read https://developers.google.com/apps-script/reference/calendar/calendar#geteventbyidicalid
+ */
+function getEvent(calendar, iCalID) {
   try {
-    return calendar.getEventById(meetId);
+    return calendar.getEventById(iCalID);
   } catch (error) {
     logBeinDelimiter();
     console.log(ERROR_CODE_COULD_NOT_GET_EVENT);
