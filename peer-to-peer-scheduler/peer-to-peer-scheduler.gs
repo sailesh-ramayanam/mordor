@@ -34,9 +34,6 @@ const FLAG_IGNORE_ROW = 0;
 const FLAG_SEND_INVITE = 1;
 const FLAG_CANCEL_INVITE = 2;
 
-const FLAG_WEEKDAY = 1;
-const FLAG_WEEKEND = 2;
-
 const NOT_FOUND = "NOT FOUND";
 const RECORDING_MIME_TYPE = "video/mp4";
 const CHAT_MIME_TYPE = "text/plain";
@@ -300,6 +297,28 @@ function initSetup() {
   return result;
 }
 
+function getEventResource(calendarId, meetId) {
+  try {
+    let eventResource = Calendar.Events.get(calendarId, meetId);
+    return eventResource;
+  } catch (error) {
+    console.log("Event could not be retrieved - " + calendarId + ", " + meetId);
+    console.log(error.toString());
+    return null;
+  }
+}
+
+function getRecurringInstances(calendarId, iCalUID) {
+  try {
+    let instancesArray = Calendar.Events.instances(calendarId, iCalUID).items;
+    return instancesArray;
+  } catch (error) {
+    console.log("Event instances could not be retrieved - " + calendarId + ", " + iCalUID);
+    console.log(error.toString());
+    return null;
+  }
+}
+
 function createMeeting(calendar, details) {
   let result = {errorMsg: "", eventId: null, eventLink: null};
 
@@ -368,19 +387,21 @@ function createMeeting(calendar, details) {
     return result;
   }
 
-  let recurranceMeetEndDate = new Date(meetEndDate.year, meetEndDate.month - 1, meetEndDate.day + 1);
+  let recurrenceMeetEndDate = new Date(meetEndDate.year, meetEndDate.month - 1, meetEndDate.day + 1);
   
   try {
     let event = calendar.createEventSeries(title, meetStart, meetEnd,
-      CalendarApp.newRecurrence().addDailyRule().until(recurranceMeetEndDate),
+      CalendarApp.newRecurrence().addDailyRule().until(recurrenceMeetEndDate),
       {guests: guestList, sendInvites: true});
     event.setGuestsCanInviteOthers(false)
     .setGuestsCanModify(false)
     .setGuestsCanSeeGuests(true);
 
     result.eventId = event.getId().replace("@google.com", "");
-    let eventResource = Calendar.Events.get(calendar.getId(), result.eventId);
-    result.eventLink = eventResource.hangoutLink;
+    let eventResource = getEventResource(calendar.getId(), result.eventId);
+    if (eventResource) {
+      result.eventLink = eventResource.hangoutLink;
+    }
   } catch (error) {
     result.errorMsg = "Event creation failed. " + error.toString();
   }
@@ -390,9 +411,8 @@ function createMeeting(calendar, details) {
 function addAttendees(calendarId, meetId, emails) {
   try {
     // Do not use addGuest method. It won't send emails to new guests.
-    let eventResource = Calendar.Events.get(calendarId, meetId);
+    let eventResource = getEventResource(calendarId, meetId);
     if (!eventResource) {
-      console.log("Event could not be retrieved - " + calendarId + ", " + meetId);
       return false;
     }
     if (!eventResource.attendees) {
@@ -600,7 +620,13 @@ function getRecordingAndChatLinks() {
     }
 
     let instancesIds = [];
-    Calendar.Events.instances(calendarId, meetId).items.forEach(
+    let instancesArray = getRecurringInstances(calendarId, meetId);
+    if(!instancesArray) {
+      invalidMeetings.push(rowNumber);
+      continue;
+    }
+
+    instancesArray.forEach(
       function (instance) {
         instancesIds.push(instance.id);
       }
@@ -615,9 +641,9 @@ function getRecordingAndChatLinks() {
     let chatLinksArray = [];
 
     for (let currentInstance = 0; currentInstance < instancesIds.length; ++currentInstance) {
-      let eventResource = Calendar.Events.get(calendarId, instancesIds[currentInstance]);
+      let eventResource = getEventResource(calendarId, instancesIds[currentInstance]);
       if (!eventResource) {
-        console.log("Event could not be retrieved - " + calendarId + ", " + instancesIds[currentInstance]);
+        invalidMeetings.push(rowNumber);
         continue;
       }
       let eventAttachments = eventResource.attachments;
@@ -698,6 +724,20 @@ function getRecordingAndChatLinks() {
   showInfo(TITLE_SUCCESS, summary);
 }
 
+function cancelFullEvent(event) {
+  try {
+    // If the event was canceled previously (e.g. someone manually canceled), then deleteEvent() throws exception.
+    event.deleteEvent();
+    return true;
+  } catch (error) {
+    logBeinDelimiter();
+    console.log(ERROR_CODE_COULD_NOT_CANCEL_EVENT);
+    console.log(error);
+    logEndDelimiter();
+    return false;
+  }
+}
+
 function cancelEvents() {
   let setupResult = initSetup();
   if (!setupResult.success) {
@@ -709,6 +749,7 @@ function cancelEvents() {
   let canceledRows = [];
   let invalidMeetings = [];
   let partialCanceledRows = [];
+  let invalidDateTimeRows = [];
   for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
     let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
@@ -727,21 +768,21 @@ function cancelEvents() {
 
     let event = getEvent(calendar, meetId);
     if (!event) {
+      invalidMeetings.push(rowNumber);
       continue;
     }
     
     let cancelDatesCell = activeSheet.getRange(rowNumber, CANCELLATION_DATES_INDEX + 1);
     let cancelDates = oneToOneData[rowIndex][CANCELLATION_DATES_INDEX].trim();
+    let startTime = parseTime(oneToOneData[rowIndex][START_TIME_INDEX].trim());
+    if (!startTime) {
+      invalidDateTimeRows.push(rowNumber);
+      continue;
+    }
 
     if (cancelDates === "") { // Full Invite cancellation
-      try {
-        // If the event was canceled previously (e.g. someone manually canceled), then deleteEvent() throws exception.
-        event.deleteEvent();
-      } catch (error) {
-        logBeinDelimiter();
-        console.log(ERROR_CODE_COULD_NOT_CANCEL_EVENT);
-        console.log(error);
-        logEndDelimiter();
+      let cancelStatus = cancelFullEvent(event);
+      if(!cancelStatus){
         invalidMeetings.push(rowNumber);
         continue;
       }
@@ -753,53 +794,58 @@ function cancelEvents() {
  
     let cancelDatesArray = cancelDates.split(",");
     for (let i = 0; i < cancelDatesArray.length; ++i) {
-      if(!parseDate(cancelDatesArray[i].trim())) {
+      let currentDate = parseDate(cancelDatesArray[i]);
+      if (!currentDate) {
+        invalidDateTimeRows.push(rowNumber);
         continue;
       }
+      cancelDatesArray[i] = new Date(currentDate.year, currentDate.month - 1, currentDate.day, startTime.hours, startTime.minutes);
     }
-    let cancelSuccessDates = [];
-    try {
-      // If the event was canceled previously (e.g. someone manually canceled), then deleteEvent() throws exception.
-      let instancesDates = {} // Each instance id format is "meetId_yyyymmddThhmmssZ"
-      Calendar.Events.instances(calendarId, meetId).items.forEach(
-        function (instance) {
-          currentDate = instance.id.split("_")[1].substring(0,8)
-          instancesDates[currentDate] = instance.id;
-        }
-      );
-      for (let i = 0; i < cancelDatesArray.length; ++i) {
-        let currentDate = cancelDatesArray[i].trim().split(DATE_DELIMITER).join("");
-        if (currentDate in instancesDates) {
-          let event = getEvent(calendar, instancesDates[currentDate]);
-          if (!event) {
-            continue;
-          }
-          event.deleteEvent();
-          cancelSuccessDates.push(cancelDatesArray[i]);
-        }
-      }
-      let instancesCount = Calendar.Events.instances(calendarId, meetId).items.length;
-      if (!instancesCount) {
-        canceledRows.push(rowNumber);
-        meetIdCell.clearContent();
-        meetLinkCell.clearContent();
-        cancelDatesCell.clearContent();
-        continue;
-      }
-    } catch (error) {
-      logBeinDelimiter();
-      console.log(ERROR_CODE_COULD_NOT_CANCEL_EVENT);
-      console.log(error);
-      logEndDelimiter();
+    
+    let instancesArray = getRecurringInstances(calendarId, meetId);
+    if(!instancesArray) {
       invalidMeetings.push(rowNumber);
       continue;
     }
-    partialCanceledRows.push([rowNumber, cancelSuccessDates.join(" , ")]);
+    
+    let instancesDates = {} // For each instance, id format is "meetId_yyyymmddThhmmssZ" and start.dateTime format is "yyyy-mm-ddThh:mm:00+05:30"
+    instancesArray.forEach(
+      function (instance) {
+        instancesDates[new Date(instance.start.dateTime)] = instance.id;
+      }
+    );
+
+    let cancelSuccessDates = [];
+    for (let i = 0; i < cancelDatesArray.length; ++i) {
+      if (cancelDatesArray[i] in instancesDates) {
+        try {
+          // If the event was canceled previously (e.g. someone manually canceled), then Calendar.Events.remove(calendarId, eventId) throws exception.
+          Calendar.Events.remove(calendarId, instancesDates[cancelDatesArray[i]]);
+          cancelSuccessDates.push(cancelDatesArray[i]);
+        } catch (error) {
+          logBeinDelimiter();
+          console.log(ERROR_CODE_COULD_NOT_CANCEL_EVENT);
+          console.log(error);
+          logEndDelimiter();
+          invalidMeetings.push(rowNumber);
+          continue;
+        }
+      }
+    }
+    if (cancelSuccessDates.length === instancesArray.length) { // all instances have been cancelled.
+      canceledRows.push(rowNumber);
+      meetIdCell.clearContent();
+      meetLinkCell.clearContent();
+      cancelDatesCell.clearContent();
+      continue;
+    }
+    partialCanceledRows.push([rowNumber, cancelDates]);
     cancelDatesCell.clearContent();
   }
   let summary = `Number of meetings fully canceled: ${canceledRows.length}
   Number of meetings partially cancelled: ${partialCanceledRows.length}
   Number of rows with invalid meeting id: ${invalidMeetings.length} (The calendar event does not exist, or it has already been deleted.)
+  Number of rows with invalid startTime or cancelDates: ${invalidDateTimeRows.length}
   ---
   Meetings in the following rows have been fully canceled.
   `;
@@ -818,6 +864,12 @@ function cancelEvents() {
   `;
   for (let i = 0; i < invalidMeetings.length; ++i) {
     summary += `\nRow ${invalidMeetings[i]}`;
+  }
+  summary += `\n---
+  Following rows have with invalid startTime or cancelDates.
+  `;
+  for (let i = 0; i < invalidDateTimeRows.length; ++i) {
+    summary += `\nRow ${invalidDateTimeRows[i]}`;
   }
   showInfo(TITLE_SUCCESS, summary);
 }
