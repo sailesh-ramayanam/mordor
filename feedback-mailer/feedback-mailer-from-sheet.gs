@@ -28,27 +28,30 @@ nameValues = {
  * If you add/remove/modify columns, you must also change below items and MSG_HELP
  */
 
-const TIMESTAMP_INDEX = 0;
-const EMAIL_ADDRESS_INDEX = 1;
-const STUDENT_NAME_INDEX = 2;
-const STUDENT_EMAIL_INDEX = 3;
-const SSM_EMAIL_INDEX = 4;
-const ALLOTTED_PROJECT_INDEX = 5;
-const DISCUSSED_PROJECT_INDEX = 6;
-const VIDEO_STATUS_INDEX = 7;
-const VIDEO_DURATION_INDEX = 8;
-const PROJECT_EXPLANATION_SCRIPT_INDEX = 9;
-const SPEECH_FLOW_INDEX = 10;
-const GENERAL_FEATURES_EXPLANATION_INDEX = 11;
-const TECH_STACK_EXPLANATION_INDEX = 12;
-const CONTRIBUTION_EXPLANATION_INDEX = 13;
+const INDEX_TIMESTAMP = 0;
+const INDEX_EMAIL_ADDRESS = 1;
+const INDEX_STUDENT_NAME = 2;
+const INDEX_STUDENT_EMAIL = 3;
+const INDEX_SSM_EMAIL = 4;
+const INDEX_ALLOTTED_PROJECT = 5;
+const INDEX_DISCUSSED_PROJECT = 6;
+const INDEX_VIDEO_STATUS = 7;
+const INDEX_VIDEO_DURATION = 8;
+const INDEX_PROJECT_EXPLANATION_SCRIPT = 9;
+const INDEX_SPEECH_FLOW = 10;
+const INDEX_FEATURES = 11;
+const INDEX_TECH_STACK = 12;
+const INDEX_SELF_CONTRIBUTION = 13;
 
-const SCORE_INDEX = 14;
-const MAIL_STATUS_INDEX = 15;
+const INDEX_SCORE = 14;
+const INDEX_MAIL_STATUS = 15;
 
 const MAIL_STATUS_SENT = "SENT";
 const MAIL_STATUS_FAILED = "FAILED";
 
+const FORM_TIMESTAMP = "Timestamp";
+const FORM_EMAIL_ADDRESS = "Email Address";
+const FORM_SSM_EMAIL = "SSM Email ID";
 const FORM_STUDENT_NAME = "Student Name";
 const FORM_STUDENT_EMAIL = "Student Email ID";
 
@@ -57,27 +60,27 @@ const FORM_DISCUSSED_PROJECT = "Which project did the student discuss?";
 
 const FORM_VIDEO_STATUS = "Did the student switch on the video?";
 const FORM_VIDEO_DURATION = "Duration of the video";
-const FORM_PROJECT_EXPLANATION_SCRIPT = "Do you think student is reading from somewhere (like screen, paper etc.) or memorized?";
+const FORM_SPEECH_APPEARANCE = "Do you think student is reading from somewhere (like screen, paper etc.) or memorized?";
 const FORM_SPEECH_FLOW = "How is the flow of the speech?";
-const FORM_GENERAL_FEATURES_EXPLANATION = "Rate the student's explanation on project general features";
-const FORM_TECH_STACK_EXPLANATION = "Rate the student's explanation on tech stack";
-const FORM_CONTRIBUTION_EXPLANATION = "Rate the student's explanation on his/her contribution";
+const FORM_GENERAL_FEATURES = "Rate the student's explanation on project general features";
+const FORM_TECH_STACK = "Rate the student's explanation on tech stack";
+const FORM_SELF_CONTRIBUTION = "Rate the student's explanation on his/her contribution";
 
 /**
  * IDEAL Answers
  */
-const VIDEO_STATUS_SWITCHED_ON = "Yes";
+const VIDEO_SWITCHED_ON = "Yes";
 const VIDEO_DURATION_IDEAL = "1 - 3 min";
-const PROJECT_EXPLANATION_SCRIPT_MEMORIZED = "Memorized";
+const SPEECH_MEMORIZED = "Memorized";
 const EXPLANATION_GOOD = "Good";
 const IDEAL_SCORE = 7;
 
 /**
  * Other Answers
  */
-const VIDEO_DURATION_SHORT = "< 1 min";
-const VIDEO_DURATION_TOO_LONG = "> 3 min";
-const EXPLANATION_TOO_LONG = "Too detailed";
+const VIDEO_SHORT = "< 1 min";
+const VIDEO_LONG = "> 3 min";
+const EXPLANATION_LONG = "Too detailed";
 const EXPLANATION_INSUFFICIENT = "Insufficient";
 const EXPLANATION_NOT_TOUCHED = "Did not touch this area";
 
@@ -88,20 +91,21 @@ const EXPLANATION_NOT_TOUCHED = "Did not touch this area";
 const OWNER_NAME = "The 10x Academy";
 const MAIL_SUBJECT = "Feedback - Project Explanation Video";
 
-const VIDEO_STATUS_SWITCH_ON_TEXT = "You have not switched on your video. Please switch on the video and speak to the camera.";
-const VIDEO_DURATION_SHORT_TEXT = "Your explanation is too short. Please speak for 1 to 3 minutes.";
-const VIDEO_DURATION_TOO_LONG_TEXT = "Your explanation is too long. Please speak for 1 to 3 minutes.";
-const PROJECT_EXPLANATION_SCRIPT_NOT_MEMORIZED_TEXT = "It feels like you are reading from somewhere (like screen, paper etc.). Practice your script multiple times and record only after you feel confident, so that it feels more authentic.";
-const SPEECH_FLOW_NOT_GOOD_TEXT = "We have observed that you are getting stuck often. Write down what you want to speak. Practice it multiple times. You can even recite it to your family members or in front of a mirror. Record after you feel confident about the content.";
-const GENERAL_FEATURES_EXPLANATION_TOO_LONG_TEXT = "Explanation about general features is too long. Interviewer may not give you that much time. Please restrict it to 2 - 3 lines.";
-const GENERAL_FEATURES_EXPLANATION_INSUFFICIENT_TEXT = "Explanation about general features is too short. Interviewer may not understand what the project is about. Please speak around 2 - 3 lines.";
-const GENERAL_FEATURES_EXPLANATION_NOT_TOUCHED_TEXT = "You have not explained what your application does. Please speak 2 - 3 lines on this.";
-const TECH_STACK_EXPLANATION_TOO_LONG_TEXT = "Explanation about tech stack is too long. Interviewer may not give you that much time. Please restrict it to 2 - 4 lines.";
-const TECH_STACK_EXPLANATION_INSUFFICIENT_TEXT = "Explanation about tech stack is too short. Interviewer may feel that you are technically weak. Please speak around 2 - 4 lines.";
-const TECH_STACK_EXPLANATION_NOT_TOUCHED_TEXT = "You have not talked about the tech stack. Please speak 2 - 4 lines on this.";
-const CONTRIBUTION_EXPLANATION_TOO_LONG_TEXT = "Explanation about your contribution is too long. Interviewer may not give you that much time. Please restrict it to 3 - 6 lines. Focus on your technical strengths.";
-const CONTRIBUTION_EXPLANATION_INSUFFICIENT_TEXT = "Explanation about your contribution is too short. Interviewer may feel that you are technically weak. Please speak around 3 - 6 lines. Highlight the areas where you are confident.";
-const CONTRIBUTION_EXPLANATION_NOT_TOUCHED_TEXT = "You have not talked about your contribution. Please speak 3 - 6 lines on this.";
+// Following are feedback texts
+const FB_VIDEO_OFF = "You have not switched on your video. Please switch on the video and speak to the camera.";
+const FB_VIDEO_SHORT = "Your explanation is too short. Please speak for 1 to 3 minutes.";
+const FB_VIDEO_LONG = "Your explanation is too long. Please speak for 1 to 3 minutes.";
+const FB_SPEECH_NOT_MEMORIZED = "It feels like you are reading from somewhere (like screen, paper etc.). Practice your script multiple times and record only after you feel confident, so that it feels more authentic.";
+const FB_SPEECH_STUCK = "We have observed that you are getting stuck often. Write down what you want to speak. Practice it multiple times. You can even recite it to your family members or in front of a mirror. Record after you feel confident about the content.";
+const FB_FEATURES_TOO_LONG = "Explanation about general features is too long. Interviewer may not give you that much time. Please restrict it to 2 - 3 lines.";
+const FB_FEATURES_INSUFFICIENT = "Explanation about general features is too short. Interviewer may not understand what the project is about. Please speak around 2 - 3 lines.";
+const FB_FEATURES_NOT_TOUCHED = "You have not explained what your application does. Please speak 2 - 3 lines on this.";
+const FB_TECH_STACK_TOO_LONG = "Explanation about tech stack is too long. Interviewer may not give you that much time. Please restrict it to 2 - 4 lines.";
+const FB_TECH_STACK_INSUFFICIENT = "Explanation about tech stack is too short. Interviewer may feel that you are technically weak. Please speak around 2 - 4 lines.";
+const FB_TECH_STACK_NOT_TOUCHED = "You have not talked about the tech stack. Please speak 2 - 4 lines on this.";
+const FB_CONTRIBUTION_TOO_LONG = "Explanation about your contribution is too long. Interviewer may not give you that much time. Please restrict it to 3 - 6 lines. Focus on your technical strengths.";
+const FB_CONTRIBUTION_INSUFFICIENT = "Explanation about your contribution is too short. Interviewer may feel that you are technically weak. Please speak around 3 - 6 lines. Highlight the areas where you are confident.";
+const FB_CONTRIBUTION_NOT_TOUCHED = "You have not talked about your contribution. Please speak 3 - 6 lines on this.";
 
 /**
  * Spreadsheet UI
@@ -111,10 +115,6 @@ const DATA_BEGIN_ROW = 2;
 const DATA_END_COLUMN = "N";
 
 const ERROR_CODE_COULD_NOT_GET_DATA = "10x-error-could-not-get-data";
-
-const FORM_TIMESTAMP = "Timestamp";
-const FORM_EMAIL_ADDRESS = "Email Address";
-const FORM_SSM_EMAIL = "SSM Email ID";
 
 const MENU_TITLE = "10x Feedback Mailer";
 const MENU_HELP = "Help";
@@ -150,11 +150,11 @@ This extension helps in sending feedback emails to the students.
 7. ${FORM_DISCUSSED_PROJECT}
 8. ${FORM_VIDEO_STATUS}
 9. ${FORM_VIDEO_DURATION}
-10. ${FORM_PROJECT_EXPLANATION_SCRIPT}
+10. ${FORM_SPEECH_APPEARANCE}
 11. ${FORM_SPEECH_FLOW}
-12. ${FORM_GENERAL_FEATURES_EXPLANATION}
-13. ${FORM_TECH_STACK_EXPLANATION}
-14. ${FORM_CONTRIBUTION_EXPLANATION}
+12. ${FORM_GENERAL_FEATURES}
+13. ${FORM_TECH_STACK}
+14. ${FORM_SELF_CONTRIBUTION}
 
 - Using "Generate Headers" Button, following columns will be generated:
 
@@ -195,8 +195,8 @@ function logEndDelimiter() {
 
 function generateHeaders() {
   const workSheet = SpreadsheetApp.getActiveSheet();
-  workSheet.getRange(1, SCORE_INDEX + 1).setValue(SCORE_HEADER_TITLE);
-  workSheet.getRange(1, MAIL_STATUS_INDEX + 1).setValue(MAIL_STATUS_HEADER_TITLE);
+  workSheet.getRange(1, INDEX_SCORE + 1).setValue(SCORE_HEADER_TITLE);
+  workSheet.getRange(1, INDEX_MAIL_STATUS + 1).setValue(MAIL_STATUS_HEADER_TITLE);
   showInfo(TITLE_SUCCESS, MSG_HEADERS_GENERATED);
 }
 
@@ -204,11 +204,8 @@ function generateHeaders() {
  * Ask the user if they want to use their current email to sent the emails.
  */
 function confirmSendingMail(email) {
+  let question = `Current email belongs to the following account. Do you want to use this account?
 
-  let emailOwner = email.substring(0, email.lastIndexOf("@"));
-  let question = `${MAIL_SENDING_CONFIRMATION_QUESTION}
-
-  Name: ${emailOwner}
   Id: ${email}
   `;
 
@@ -255,7 +252,7 @@ function sheetData(sheet) {
 
 function validateEmail(email) {
   try {
-    return email.endsWith("@gmail.com") || email.endsWith("@the10xacademy.com") || email.endsWith("@yahoo.com");
+    return email.endsWith("@gmail.com") || email.endsWith("@the10xacademy.com");
   } catch (error) {
     return false;
   }
@@ -266,7 +263,7 @@ function sendEmail(studentEmail, mailBody) {
   let errorMsg = "";
   if (!validateEmail(studentEmail)) {
     status = MAIL_STATUS_FAILED;
-    errorMsg = "Invalid email: " + studentEmail;
+    errorMsg = `Invalid email: ${studentEmail}`;
     return { status , errorMsg };
   }
   try {
@@ -274,12 +271,11 @@ function sendEmail(studentEmail, mailBody) {
     let htmlText = htmlFile.evaluate().getContent();
     GmailApp.sendEmail(studentEmail, MAIL_SUBJECT, mailBody, { name: OWNER_NAME , htmlBody : htmlText } );
     status = MAIL_STATUS_SENT;
-    return { status , errorMsg };
   } catch (error) {
     status = MAIL_STATUS_FAILED;
     errorMsg = "Mail sending failed. " + error.toString();
-    return { status , errorMsg };
   }
+  return { status , errorMsg };
 }
 
 function sendMailsToStudents() {
@@ -303,7 +299,7 @@ function sendMailsToStudents() {
   for (let rowIndex = 0; rowIndex < feedbackData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
 
-    let mailSentStatusCell = activeSheet.getRange(rowNumber, MAIL_STATUS_INDEX + 1);
+    let mailSentStatusCell = activeSheet.getRange(rowNumber, INDEX_MAIL_STATUS + 1);
     if (mailSentStatusCell.getValue().trim() === MAIL_STATUS_SENT) {
       // Mail is already sent
       skippedRows.push(rowNumber);
@@ -311,24 +307,24 @@ function sendMailsToStudents() {
     }
 
     let studentFormFeedback = {}
-    studentFormFeedback[FORM_TIMESTAMP] = feedbackData[rowIndex][TIMESTAMP_INDEX];
-    studentFormFeedback[FORM_EMAIL_ADDRESS] = feedbackData[rowIndex][EMAIL_ADDRESS_INDEX];
-    studentFormFeedback[FORM_STUDENT_NAME] = feedbackData[rowIndex][STUDENT_NAME_INDEX];
-    studentFormFeedback[FORM_STUDENT_EMAIL] = feedbackData[rowIndex][STUDENT_EMAIL_INDEX];
-    studentFormFeedback[FORM_SSM_EMAIL] = feedbackData[rowIndex][SSM_EMAIL_INDEX];
-    studentFormFeedback[FORM_ALLOTTED_PROJECT] = feedbackData[rowIndex][ALLOTTED_PROJECT_INDEX];
-    studentFormFeedback[FORM_DISCUSSED_PROJECT] = feedbackData[rowIndex][DISCUSSED_PROJECT_INDEX];
-    studentFormFeedback[FORM_VIDEO_STATUS] = feedbackData[rowIndex][VIDEO_STATUS_INDEX];
-    studentFormFeedback[FORM_VIDEO_DURATION] = feedbackData[rowIndex][VIDEO_DURATION_INDEX];
-    studentFormFeedback[FORM_PROJECT_EXPLANATION_SCRIPT] = feedbackData[rowIndex][PROJECT_EXPLANATION_SCRIPT_INDEX];
-    studentFormFeedback[FORM_SPEECH_FLOW] = feedbackData[rowIndex][SPEECH_FLOW_INDEX];
-    studentFormFeedback[FORM_GENERAL_FEATURES_EXPLANATION] = feedbackData[rowIndex][GENERAL_FEATURES_EXPLANATION_INDEX];
-    studentFormFeedback[FORM_TECH_STACK_EXPLANATION] = feedbackData[rowIndex][TECH_STACK_EXPLANATION_INDEX];
-    studentFormFeedback[FORM_CONTRIBUTION_EXPLANATION] = feedbackData[rowIndex][CONTRIBUTION_EXPLANATION_INDEX];
+    studentFormFeedback[FORM_TIMESTAMP] = feedbackData[rowIndex][INDEX_TIMESTAMP];
+    studentFormFeedback[FORM_EMAIL_ADDRESS] = feedbackData[rowIndex][INDEX_EMAIL_ADDRESS];
+    studentFormFeedback[FORM_STUDENT_NAME] = feedbackData[rowIndex][INDEX_STUDENT_NAME];
+    studentFormFeedback[FORM_STUDENT_EMAIL] = feedbackData[rowIndex][INDEX_STUDENT_EMAIL];
+    studentFormFeedback[FORM_SSM_EMAIL] = feedbackData[rowIndex][INDEX_SSM_EMAIL];
+    studentFormFeedback[FORM_ALLOTTED_PROJECT] = feedbackData[rowIndex][INDEX_ALLOTTED_PROJECT];
+    studentFormFeedback[FORM_DISCUSSED_PROJECT] = feedbackData[rowIndex][INDEX_DISCUSSED_PROJECT];
+    studentFormFeedback[FORM_VIDEO_STATUS] = feedbackData[rowIndex][INDEX_VIDEO_STATUS];
+    studentFormFeedback[FORM_VIDEO_DURATION] = feedbackData[rowIndex][INDEX_VIDEO_DURATION];
+    studentFormFeedback[FORM_SPEECH_APPEARANCE] = feedbackData[rowIndex][INDEX_PROJECT_EXPLANATION_SCRIPT];
+    studentFormFeedback[FORM_SPEECH_FLOW] = feedbackData[rowIndex][INDEX_SPEECH_FLOW];
+    studentFormFeedback[FORM_GENERAL_FEATURES] = feedbackData[rowIndex][INDEX_FEATURES];
+    studentFormFeedback[FORM_TECH_STACK] = feedbackData[rowIndex][INDEX_TECH_STACK];
+    studentFormFeedback[FORM_SELF_CONTRIBUTION] = feedbackData[rowIndex][INDEX_SELF_CONTRIBUTION];
 
     let { mailBody , score } = createMailBody(studentFormFeedback);
 
-    let scoreCell = activeSheet.getRange(rowNumber, SCORE_INDEX + 1);
+    let scoreCell = activeSheet.getRange(rowNumber, INDEX_SCORE + 1);
     scoreCell.setValue(score);
     let { status , errorMsg } = sendEmail(studentFormFeedback[FORM_STUDENT_EMAIL], mailBody);
     mailSentStatusCell.setValue(status);
@@ -374,57 +370,57 @@ function generateStudentFeedbacksArray(studentFormFeedback) {
     return { studentFeedbacksArray, score };
   }
 
-  if (studentFormFeedback[FORM_VIDEO_STATUS] !== VIDEO_STATUS_SWITCHED_ON) {
-    studentFeedbacksArray.push(VIDEO_STATUS_SWITCH_ON_TEXT);
+  if (studentFormFeedback[FORM_VIDEO_STATUS] !== VIDEO_SWITCHED_ON) {
+    studentFeedbacksArray.push(FB_VIDEO_OFF);
   }
 
   switch (studentFormFeedback[FORM_VIDEO_DURATION]) {
-    case VIDEO_DURATION_SHORT:
-      studentFeedbacksArray.push(VIDEO_DURATION_SHORT_TEXT);
+    case VIDEO_SHORT:
+      studentFeedbacksArray.push(FB_VIDEO_SHORT);
       break;
-    case VIDEO_DURATION_TOO_LONG:
-      studentFeedbacksArray.push(VIDEO_DURATION_TOO_LONG_TEXT);
+    case VIDEO_LONG:
+      studentFeedbacksArray.push(FB_VIDEO_LONG);
   }
 
-  if (studentFormFeedback[FORM_PROJECT_EXPLANATION_SCRIPT] !== PROJECT_EXPLANATION_SCRIPT_MEMORIZED) {
-    studentFeedbacksArray.push(PROJECT_EXPLANATION_SCRIPT_NOT_MEMORIZED_TEXT);
+  if (studentFormFeedback[FORM_SPEECH_APPEARANCE] !== SPEECH_MEMORIZED) {
+    studentFeedbacksArray.push(FB_SPEECH_NOT_MEMORIZED);
   }
 
   if (studentFormFeedback[FORM_SPEECH_FLOW] !== EXPLANATION_GOOD) {
-    studentFeedbacksArray.push(SPEECH_FLOW_NOT_GOOD_TEXT);
+    studentFeedbacksArray.push(FB_SPEECH_STUCK);
   }
 
-  switch (studentFormFeedback[FORM_GENERAL_FEATURES_EXPLANATION]) {
-    case EXPLANATION_TOO_LONG:
-      studentFeedbacksArray.push(GENERAL_FEATURES_EXPLANATION_TOO_LONG_TEXT);
+  switch (studentFormFeedback[FORM_GENERAL_FEATURES]) {
+    case EXPLANATION_LONG:
+      studentFeedbacksArray.push(FB_FEATURES_TOO_LONG);
       break;
     case EXPLANATION_INSUFFICIENT:
-      studentFeedbacksArray.push(GENERAL_FEATURES_EXPLANATION_INSUFFICIENT_TEXT);
+      studentFeedbacksArray.push(FB_FEATURES_INSUFFICIENT);
       break;
     case EXPLANATION_NOT_TOUCHED:
-      studentFeedbacksArray.push(GENERAL_FEATURES_EXPLANATION_NOT_TOUCHED_TEXT);
+      studentFeedbacksArray.push(FB_FEATURES_NOT_TOUCHED);
   }
 
-  switch (studentFormFeedback[FORM_TECH_STACK_EXPLANATION]) {
-    case EXPLANATION_TOO_LONG:
-      studentFeedbacksArray.push(TECH_STACK_EXPLANATION_TOO_LONG_TEXT);
+  switch (studentFormFeedback[FORM_TECH_STACK]) {
+    case EXPLANATION_LONG:
+      studentFeedbacksArray.push(FB_TECH_STACK_TOO_LONG);
       break;
     case EXPLANATION_INSUFFICIENT:
-      studentFeedbacksArray.push(TECH_STACK_EXPLANATION_INSUFFICIENT_TEXT);
+      studentFeedbacksArray.push(FB_TECH_STACK_INSUFFICIENT);
       break;
     case EXPLANATION_NOT_TOUCHED:
-      studentFeedbacksArray.push(TECH_STACK_EXPLANATION_NOT_TOUCHED_TEXT);
+      studentFeedbacksArray.push(FB_TECH_STACK_NOT_TOUCHED);
   }
 
-  switch (studentFormFeedback[FORM_CONTRIBUTION_EXPLANATION]) {
-    case EXPLANATION_TOO_LONG:
-      studentFeedbacksArray.push(CONTRIBUTION_EXPLANATION_TOO_LONG_TEXT);
+  switch (studentFormFeedback[FORM_SELF_CONTRIBUTION]) {
+    case EXPLANATION_LONG:
+      studentFeedbacksArray.push(FB_CONTRIBUTION_TOO_LONG);
       break;
     case EXPLANATION_INSUFFICIENT:
-      studentFeedbacksArray.push(CONTRIBUTION_EXPLANATION_INSUFFICIENT_TEXT);
+      studentFeedbacksArray.push(FB_CONTRIBUTION_INSUFFICIENT);
       break;
     case EXPLANATION_NOT_TOUCHED:
-      studentFeedbacksArray.push(CONTRIBUTION_EXPLANATION_NOT_TOUCHED_TEXT);
+      studentFeedbacksArray.push(FB_CONTRIBUTION_NOT_TOUCHED);
   }
 
   let score = IDEAL_SCORE - studentFeedbacksArray.length;
@@ -452,20 +448,20 @@ function createMailBody(studentFormFeedback) {
 
     return { mailBody , score };
   }
+  
+  let feedbackLines = "";
+  for (let fbIndex = 0; fbIndex < studentFeedbacksArray.length; fbIndex++) {
+    feedbackLines += `<li> ${studentFeedbacksArray[fbIndex]} </li>`;
+  }
 
   mailBody = `
     Dear <b>${studentFormFeedback[FORM_STUDENT_NAME]}</b>,<br />
     <br />
     The project explanation video submitted by you does not meet expectations. Detailed feedback is provided below.<br />
     
-    <ol>`
-  ;
-  
-  for (let feedback = 0; feedback <studentFeedbacksArray.length; feedback++) {
-    mailBody += `<li> ${studentFeedbacksArray[feedback]} </li>`;
-  }
-
-  mailBody += `</ol>
+    <ol>
+    ${feedbackLines}
+    </ol>
 
     Please create the video again, improving the point(s) discussed above and re-submit the updated video.<br />
     <br />
