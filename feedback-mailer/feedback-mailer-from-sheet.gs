@@ -267,9 +267,7 @@ function sendEmail(studentEmail, mailBody) {
     return { status , errorMsg };
   }
   try {
-    let htmlFile = HtmlService.createTemplate(mailBody);
-    let htmlText = htmlFile.evaluate().getContent();
-    GmailApp.sendEmail(studentEmail, MAIL_SUBJECT, mailBody, { name: OWNER_NAME , htmlBody : htmlText } );
+    GmailApp.sendEmail(studentEmail, MAIL_SUBJECT, "Feedback", { name: OWNER_NAME , htmlBody : mailBody } );
     status = MAIL_STATUS_SENT;
   } catch (error) {
     status = MAIL_STATUS_FAILED;
