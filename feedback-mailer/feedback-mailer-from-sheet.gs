@@ -90,6 +90,7 @@ const EXPLANATION_NOT_TOUCHED = "Did not touch this area";
  */
 const OWNER_NAME = "The 10x Academy";
 const MAIL_SUBJECT = "Feedback - Project Explanation Video";
+const BCC_EMAIL = "operations@the10xacademy.com";
 
 // Following are feedback texts
 const FB_VIDEO_OFF = "You have not switched on your video. Please switch on the video and speak to the camera.";
@@ -267,7 +268,7 @@ function sendEmail(studentEmail, mailBody) {
     return { status , errorMsg };
   }
   try {
-    GmailApp.sendEmail(studentEmail, MAIL_SUBJECT, "Feedback", { name: OWNER_NAME , htmlBody : mailBody } );
+    GmailApp.sendEmail(studentEmail, MAIL_SUBJECT, mailBody, { name: OWNER_NAME , htmlBody : mailBody , bcc : BCC_EMAIL } );
     status = MAIL_STATUS_SENT;
   } catch (error) {
     status = MAIL_STATUS_FAILED;
