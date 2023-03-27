@@ -325,7 +325,7 @@ function sendMailsToStudents() {
 
     let scoreCell = activeSheet.getRange(rowNumber, INDEX_SCORE + 1);
     scoreCell.setValue(score);
-    let { status , errorMsg } = sendEmail(studentFormFeedback[FORM_STUDENT_EMAIL], mailBody);
+    let { status , errorMsg } = sendEmail(studentFormFeedback[FORM_STUDENT_EMAIL].trim(), mailBody);
     mailSentStatusCell.setValue(status);
 
     if (status === MAIL_STATUS_FAILED) {
