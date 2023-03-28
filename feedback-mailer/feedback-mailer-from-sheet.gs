@@ -1,5 +1,5 @@
 // Whenever you publish a new version of the add-on, you must increment the below version number. This helps for book-keeping and comparing with previous versions.
-const LAST_PUBLISHED_VERSION = 0;
+const LAST_PUBLISHED_VERSION = 1;
 
 /*
 Current namedValues object is
@@ -91,7 +91,7 @@ const EXPLANATION_NOT_TOUCHED = "Did not touch this area";
 const OWNER_NAME = "The 10x Academy";
 const MAIL_SUBJECT = "Feedback - Project Explanation Video";
 const BCC_EMAIL = "operations@the10xacademy.com";
-const EXCEPTION_EMAILS = ["@gmail.com", "@the10xacademy.com", "@rvce.edu.in"]; //Emails ending with these are allowed.
+const ALLOWED_DOMAINS = ["@gmail.com", "@the10xacademy.com", "@rvce.edu.in"];
 
 // Following are feedback texts
 const FB_VIDEO_OFF = "You have not switched on your video. Please switch on the video and speak to the camera.";
@@ -254,8 +254,8 @@ function sheetData(sheet) {
 
 function validateEmail(email) {
   try {
-    for (exception of EXCEPTION_EMAILS) {
-      if (email.endsWith(exception)) {
+    for (const domain of ALLOWED_DOMAINS) {
+      if (email.endsWith(domain)) {
         return true;
       }
     }
