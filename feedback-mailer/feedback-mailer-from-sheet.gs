@@ -1,5 +1,5 @@
 // Whenever you publish a new version of the add-on, you must increment the below version number. This helps for book-keeping and comparing with previous versions.
-const LAST_PUBLISHED_VERSION = 1;
+const LAST_PUBLISHED_VERSION = 2;
 
 /*
 Current namedValues object is
