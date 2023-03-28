@@ -91,6 +91,7 @@ const EXPLANATION_NOT_TOUCHED = "Did not touch this area";
 const OWNER_NAME = "The 10x Academy";
 const MAIL_SUBJECT = "Feedback - Project Explanation Video";
 const BCC_EMAIL = "operations@the10xacademy.com";
+const EXCEPTION_EMAILS = ["@gmail.com", "@the10xacademy.com", "@rvce.edu.in"]; //Emails ending with these are allowed.
 
 // Following are feedback texts
 const FB_VIDEO_OFF = "You have not switched on your video. Please switch on the video and speak to the camera.";
@@ -253,7 +254,12 @@ function sheetData(sheet) {
 
 function validateEmail(email) {
   try {
-    return email.endsWith("@gmail.com") || email.endsWith("@the10xacademy.com");
+    for (exception of EXCEPTION_EMAILS) {
+      if (email.endsWith(exception)) {
+        return true;
+      }
+    }
+    return false;
   } catch (error) {
     return false;
   }
@@ -306,26 +312,26 @@ function sendMailsToStudents() {
     }
 
     let studentFormFeedback = {}
-    studentFormFeedback[FORM_TIMESTAMP] = feedbackData[rowIndex][INDEX_TIMESTAMP];
-    studentFormFeedback[FORM_EMAIL_ADDRESS] = feedbackData[rowIndex][INDEX_EMAIL_ADDRESS];
-    studentFormFeedback[FORM_STUDENT_NAME] = feedbackData[rowIndex][INDEX_STUDENT_NAME];
-    studentFormFeedback[FORM_STUDENT_EMAIL] = feedbackData[rowIndex][INDEX_STUDENT_EMAIL];
-    studentFormFeedback[FORM_SSM_EMAIL] = feedbackData[rowIndex][INDEX_SSM_EMAIL];
-    studentFormFeedback[FORM_ALLOTTED_PROJECT] = feedbackData[rowIndex][INDEX_ALLOTTED_PROJECT];
-    studentFormFeedback[FORM_DISCUSSED_PROJECT] = feedbackData[rowIndex][INDEX_DISCUSSED_PROJECT];
-    studentFormFeedback[FORM_VIDEO_STATUS] = feedbackData[rowIndex][INDEX_VIDEO_STATUS];
-    studentFormFeedback[FORM_VIDEO_DURATION] = feedbackData[rowIndex][INDEX_VIDEO_DURATION];
-    studentFormFeedback[FORM_SPEECH_APPEARANCE] = feedbackData[rowIndex][INDEX_PROJECT_EXPLANATION_SCRIPT];
-    studentFormFeedback[FORM_SPEECH_FLOW] = feedbackData[rowIndex][INDEX_SPEECH_FLOW];
-    studentFormFeedback[FORM_GENERAL_FEATURES] = feedbackData[rowIndex][INDEX_FEATURES];
-    studentFormFeedback[FORM_TECH_STACK] = feedbackData[rowIndex][INDEX_TECH_STACK];
-    studentFormFeedback[FORM_SELF_CONTRIBUTION] = feedbackData[rowIndex][INDEX_SELF_CONTRIBUTION];
+    studentFormFeedback[FORM_TIMESTAMP] = feedbackData[rowIndex][INDEX_TIMESTAMP].trim();
+    studentFormFeedback[FORM_EMAIL_ADDRESS] = feedbackData[rowIndex][INDEX_EMAIL_ADDRESS].trim();
+    studentFormFeedback[FORM_STUDENT_NAME] = feedbackData[rowIndex][INDEX_STUDENT_NAME].trim();
+    studentFormFeedback[FORM_STUDENT_EMAIL] = feedbackData[rowIndex][INDEX_STUDENT_EMAIL].trim();
+    studentFormFeedback[FORM_SSM_EMAIL] = feedbackData[rowIndex][INDEX_SSM_EMAIL].trim();
+    studentFormFeedback[FORM_ALLOTTED_PROJECT] = feedbackData[rowIndex][INDEX_ALLOTTED_PROJECT].trim();
+    studentFormFeedback[FORM_DISCUSSED_PROJECT] = feedbackData[rowIndex][INDEX_DISCUSSED_PROJECT].trim();
+    studentFormFeedback[FORM_VIDEO_STATUS] = feedbackData[rowIndex][INDEX_VIDEO_STATUS].trim();
+    studentFormFeedback[FORM_VIDEO_DURATION] = feedbackData[rowIndex][INDEX_VIDEO_DURATION].trim();
+    studentFormFeedback[FORM_SPEECH_APPEARANCE] = feedbackData[rowIndex][INDEX_PROJECT_EXPLANATION_SCRIPT].trim();
+    studentFormFeedback[FORM_SPEECH_FLOW] = feedbackData[rowIndex][INDEX_SPEECH_FLOW].trim();
+    studentFormFeedback[FORM_GENERAL_FEATURES] = feedbackData[rowIndex][INDEX_FEATURES].trim();
+    studentFormFeedback[FORM_TECH_STACK] = feedbackData[rowIndex][INDEX_TECH_STACK].trim();
+    studentFormFeedback[FORM_SELF_CONTRIBUTION] = feedbackData[rowIndex][INDEX_SELF_CONTRIBUTION].trim();
 
     let { mailBody , score } = createMailBody(studentFormFeedback);
 
     let scoreCell = activeSheet.getRange(rowNumber, INDEX_SCORE + 1);
     scoreCell.setValue(score);
-    let { status , errorMsg } = sendEmail(studentFormFeedback[FORM_STUDENT_EMAIL].trim(), mailBody);
+    let { status , errorMsg } = sendEmail(studentFormFeedback[FORM_STUDENT_EMAIL], mailBody);
     mailSentStatusCell.setValue(status);
 
     if (status === MAIL_STATUS_FAILED) {
