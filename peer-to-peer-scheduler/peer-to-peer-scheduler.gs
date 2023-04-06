@@ -1,5 +1,5 @@
 // Whenever you publish a new version of the add-on, you must increment the below version number. This helps for book-keeping and comparing with previous versions.
-const LAST_PUBLISHED_VERSION = 0;
+const LAST_PUBLISHED_VERSION = 1;
 
 /**
  * These are 0-based indices. Do not confuse them with column numbers.
@@ -63,7 +63,7 @@ Version: ${LAST_PUBLISHED_VERSION + 1}
 1. Meeting Type - To be filled by the team.
 2. Group Number - To be filled by the team.
 3. Module Name - To be filled by the team.
-4. Student Emails - Email ids of the students - Comma seperated values. To be filled by the team.
+4. Student Emails - Email ids of the students - Comma separated values. To be filled by the team.
 5. SSM Emails - Additional Emails you want to include in the meeting - Comma separated values.
 6. Mentor Email - Email id of the mentor. To be filled by the team.
 7. Ops Request - (0 - ignore the row),(1 - for meet invites),(2 - for Cancel Meeting) To be filled by the team.
@@ -73,7 +73,7 @@ Version: ${LAST_PUBLISHED_VERSION + 1}
 11. End time - End time of Meeting in hh:mm format (24 hours). To be filled by the team.
 12. Meeting ID - Auto populated by the script.
 13. Meeting link - Auto populated by the script.
-14. Cancellation Dates - Dates in yyyy-mm-dd format - Comma seperated values. To be filled by the team.
+14. Cancellation Dates - Dates in yyyy-mm-dd format - Comma separated values. To be filled by the team.
 15. Recording Links - Auto populated by the script.
 16. Chat Links - Auto populated by the script.
 
@@ -117,7 +117,7 @@ function onOpen(e) {
   .addToUi();
 }
 
-function logBeinDelimiter() {
+function logBeginDelimiter() {
   console.log("BEGIN: 10x---------------10x");
 }
 
@@ -133,7 +133,7 @@ function getCalendar() {
       calendar.setTimeZone("Asia/Kolkata");
     }
   } catch (error) {
-    logBeinDelimiter();
+    logBeginDelimiter();
     console.log(ERROR_CODE_CALENDAR_NOT_FOUND);
     console.log(error);
     logEndDelimiter();
@@ -162,10 +162,29 @@ function confirmCalendar(calendar) {
   if (userResponse === ui.Button.YES) {
     return true;
   }
-  logBeinDelimiter();
+  logBeginDelimiter();
   console.log(INFO_CODE_CALENDAR_REJECTED);
   logEndDelimiter();
   return false;
+}
+
+/**
+ * Ask the user if they want to add any description to the meet.
+ */
+function confirmMeetDescription() {
+
+  let inputPlaceholder = `Please add any message or link to be shared with meet participants here`;
+
+  let ui = SpreadsheetApp.getUi();
+  let userResponse = ui.prompt('Meet Description', inputPlaceholder, ui.ButtonSet.OK);
+  
+  if (userResponse.getSelectedButton() === ui.Button.OK) {
+    return userResponse.getResponseText();
+  }
+  logBeginDelimiter();
+  console.log("Action Cancelled"); 
+  logEndDelimiter();
+  return null;
 }
 
 function showInfo(title, body) {
@@ -248,7 +267,7 @@ function getEvent(calendar, meetId) {
   try {
     return calendar.getEventById(meetId);
   } catch (error) {
-    logBeinDelimiter();
+    logBeginDelimiter();
     console.log(ERROR_CODE_COULD_NOT_GET_EVENT);
     console.log(error);
     logEndDelimiter();
@@ -261,7 +280,7 @@ function get1to1Data(sheet) {
     let dataRange = sheet.getRange(`A${DATA_BEGIN_ROW}:${DATA_END_COLUMN}${sheet.getLastRow()}`);
     return dataRange.getDisplayValues();
   } catch (error) {
-    logBeinDelimiter();
+    logBeginDelimiter();
     console.log(ERROR_CODE_COULD_NOT_GET_DATA);
     console.log(error);
     logEndDelimiter();
@@ -319,7 +338,7 @@ function getRecurringInstances(calendarId, iCalUID) {
   }
 }
 
-function createMeeting(calendar, details) {
+function createMeeting(calendar, details, meetDescription) {
   let result = {errorMsg: "", eventId: null, eventLink: null};
 
   if (!calendar) {
@@ -392,7 +411,7 @@ function createMeeting(calendar, details) {
   try {
     let event = calendar.createEventSeries(title, meetStart, meetEnd,
       CalendarApp.newRecurrence().addDailyRule().until(recurrenceMeetEndDate),
-      {guests: guestList, sendInvites: true});
+      {guests: guestList, sendInvites: true, description: meetDescription});
     event.setGuestsCanInviteOthers(false)
     .setGuestsCanModify(false)
     .setGuestsCanSeeGuests(true);
@@ -439,6 +458,8 @@ function sendInvitesToStudents() {
   }
   let { calendar, activeSheet, oneToOneData } = setupResult;
 
+  let meetDescription = confirmMeetDescription();
+
   let errorRows = [];
   let skippedRows = [];
   let successRows = [];
@@ -459,10 +480,10 @@ function sendInvitesToStudents() {
       continue;
     }
 
-    let result = createMeeting(calendar, oneToOneData[rowIndex]);
+    let result = createMeeting(calendar, oneToOneData[rowIndex], meetDescription);
     if (!result.eventId) {
       errorRows.push({rowNumber: rowNumber, error: result.errorMsg});
-      logBeinDelimiter();
+      logBeginDelimiter();
       console.log(ERROR_CODE_COULD_NOT_CREATE_EVENT);
       console.log(result.errorMsg);
       logEndDelimiter();
@@ -666,8 +687,8 @@ function getRecordingAndChatLinks() {
         }
       }
     }
-    recordingLinkCell.setValue(recordingLinksArray.join("\n"));
-    chatLinkCell.setValue(chatLinksArray.join("\n"));
+    recordingLinkCell.setValue(recordingLinksArray.join(","));
+    chatLinkCell.setValue(chatLinksArray.join(","));
     if (videoFound && chatFound) {
       ++numSuccess;
       continue;
@@ -730,7 +751,7 @@ function cancelFullEvent(event) {
     event.deleteEvent();
     return true;
   } catch (error) {
-    logBeinDelimiter();
+    logBeginDelimiter();
     console.log(ERROR_CODE_COULD_NOT_CANCEL_EVENT);
     console.log(error);
     logEndDelimiter();
@@ -823,7 +844,7 @@ function cancelEvents() {
           Calendar.Events.remove(calendarId, instancesDates[cancelDatesArray[i]]);
           cancelSuccessDates.push(cancelDatesArray[i]);
         } catch (error) {
-          logBeinDelimiter();
+          logBeginDelimiter();
           console.log(ERROR_CODE_COULD_NOT_CANCEL_EVENT);
           console.log(error);
           logEndDelimiter();
