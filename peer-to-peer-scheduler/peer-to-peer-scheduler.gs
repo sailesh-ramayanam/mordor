@@ -90,8 +90,6 @@ const DATE_DELIMITER = "-";
 
 const MEETING_TITLE_DELIMITER = " | ";
 const MEETING_TITLE_SUFFIX = " - 10x Academy"
-const MEETING_FIRST_REMINDER_MINUTES = 60;
-const MEETING_SECOND_REMINDER_MINUTES = 30;
 
 const ERROR_CODE_CALENDAR_NOT_FOUND = "10x-error-calendar-not-found";
 const ERROR_CODE_COULD_NOT_GET_DATA = "10x-error-could-not-get-data";
@@ -182,7 +180,7 @@ function confirmMeetDescription() {
     return userResponse.getResponseText();
   }
   logBeginDelimiter();
-  console.log("Action Cancelled"); 
+  console.log("Meet description canceled"); 
   logEndDelimiter();
   return null;
 }
@@ -263,9 +261,9 @@ function validateEmail(email) {
   }
 }
 
-function getEvent(calendar, meetId) {
+function getEventSeries(calendar, meetId) {
   try {
-    return calendar.getEventById(meetId);
+    return calendar.getEventSeriesById(meetId);
   } catch (error) {
     logBeginDelimiter();
     console.log(ERROR_CODE_COULD_NOT_GET_EVENT);
@@ -275,7 +273,7 @@ function getEvent(calendar, meetId) {
   }
 }
 
-function get1to1Data(sheet) {
+function getP2PData(sheet) {
   try {
     let dataRange = sheet.getRange(`A${DATA_BEGIN_ROW}:${DATA_END_COLUMN}${sheet.getLastRow()}`);
     return dataRange.getDisplayValues();
@@ -293,7 +291,7 @@ function initSetup() {
     success: false,
     calendar: null,
     activeSheet: null,
-    oneToOneData: null
+    p2pData: null
   };
   result.calendar = getCalendar();
   if (!result.calendar) {
@@ -307,8 +305,8 @@ function initSetup() {
   }
 
   result.activeSheet = SpreadsheetApp.getActiveSheet();
-  result.oneToOneData = get1to1Data(result.activeSheet);
-  if (!result.oneToOneData) {
+  result.p2pData = getP2PData(result.activeSheet);
+  if (!result.p2pData) {
     showInfo(TITLE_ERROR, MSG_COULD_NOT_FETCH_DATA);
     return result;
   }
@@ -346,8 +344,6 @@ function createMeeting(calendar, details, meetDescription) {
     return result;
   }
 
-  let guestList = "";
-
   let studentEmails = details[STUDENT_EMAILS_INDEX].split(",");
   for (let eIndex = 0; eIndex < studentEmails.length; ++eIndex) {
     let currEmail = studentEmails[eIndex].trim();
@@ -358,7 +354,7 @@ function createMeeting(calendar, details, meetDescription) {
     studentEmails[eIndex] = currEmail;
   }
 
-  guestList = studentEmails.join(",");
+  let guestList = studentEmails.join(",");
 
   let ssmEmails = details[SSM_EMAILS_INDEX].split(",");
   for (let eIndex = 0; eIndex < ssmEmails.length; ++eIndex) {
@@ -397,9 +393,6 @@ function createMeeting(calendar, details, meetDescription) {
     return result;
   }
 
-  let meetStart = new Date(meetStartDate.year, meetStartDate.month - 1, meetStartDate.day, startTime.hours, startTime.minutes);
-  let meetEnd = new Date(meetStartDate.year, meetStartDate.month - 1, meetStartDate.day, endTime.hours, endTime.minutes);
-
   let meetEndDate = parseDate(details[END_DATE_INDEX]);
   if (!meetEndDate) {
     result.errorMsg = "Invalid date: " + details[END_DATE_INDEX];
@@ -407,6 +400,9 @@ function createMeeting(calendar, details, meetDescription) {
   }
 
   let recurrenceMeetEndDate = new Date(meetEndDate.year, meetEndDate.month - 1, meetEndDate.day + 1);
+
+  let meetStart = new Date(meetStartDate.year, meetStartDate.month - 1, meetStartDate.day, startTime.hours, startTime.minutes);
+  let meetEnd = new Date(meetStartDate.year, meetStartDate.month - 1, meetStartDate.day, endTime.hours, endTime.minutes);
   
   try {
     let event = calendar.createEventSeries(title, meetStart, meetEnd,
@@ -456,14 +452,14 @@ function sendInvitesToStudents() {
   if (!setupResult.success) {
     return;
   }
-  let { calendar, activeSheet, oneToOneData } = setupResult;
+  let { calendar, activeSheet, p2pData } = setupResult;
 
   let meetDescription = confirmMeetDescription();
 
   let errorRows = [];
   let skippedRows = [];
   let successRows = [];
-  for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
+  for (let rowIndex = 0; rowIndex < p2pData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
     let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
     if (opsRequestFlag !== FLAG_SEND_INVITE) {
@@ -480,7 +476,7 @@ function sendInvitesToStudents() {
       continue;
     }
 
-    let result = createMeeting(calendar, oneToOneData[rowIndex], meetDescription);
+    let result = createMeeting(calendar, p2pData[rowIndex], meetDescription);
     if (!result.eventId) {
       errorRows.push({rowNumber: rowNumber, error: result.errorMsg});
       logBeginDelimiter();
@@ -517,7 +513,7 @@ function sendInvitesToMentors() {
   if (!setupResult.success) {
     return;
   }
-  let { calendar, activeSheet, oneToOneData } = setupResult;
+  let { calendar, activeSheet, p2pData } = setupResult;
 
   let noMeetingRows = [];
   let invalidMeetings = [];
@@ -526,7 +522,7 @@ function sendInvitesToMentors() {
   let numSkipped = 0;
   let calendarId = calendar.getId();
 
-  for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
+  for (let rowIndex = 0; rowIndex < p2pData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
     let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
 
@@ -544,7 +540,7 @@ function sendInvitesToMentors() {
       continue;
     }
 
-    let event = getEvent(calendar, meetId);
+    let event = getEventSeries(calendar, meetId);
     if (!event) {
       invalidMeetings.push(rowNumber);
       continue;
@@ -607,7 +603,7 @@ function getRecordingAndChatLinks() {
   if (!setupResult.success) {
     return;
   }
-  let { calendar, activeSheet, oneToOneData } = setupResult;
+  let { calendar, activeSheet, p2pData } = setupResult;
 
   let noMeetingRows = [];
   let invalidMeetings = [];
@@ -617,7 +613,7 @@ function getRecordingAndChatLinks() {
   let numSkipped = 0;
   let calendarId = calendar.getId();
 
-  for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
+  for (let rowIndex = 0; rowIndex < p2pData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
     let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
     if (opsRequestFlag !== FLAG_SEND_INVITE) {
@@ -634,7 +630,7 @@ function getRecordingAndChatLinks() {
       continue;
     }
 
-    let event = getEvent(calendar, meetId);
+    let event = getEventSeries(calendar, meetId);
     if (!event) {
       invalidMeetings.push(rowNumber);
       continue;
@@ -647,11 +643,9 @@ function getRecordingAndChatLinks() {
       continue;
     }
 
-    instancesArray.forEach(
-      function (instance) {
-        instancesIds.push(instance.id);
-      }
-    );
+    for (let instance of instancesArray) {
+      instancesIds.push(instance.id);
+    }
 
     let recordingLinkCell = activeSheet.getRange(rowNumber, RECORDING_LINKS_INDEX + 1);
     let chatLinkCell = activeSheet.getRange(rowNumber, CHAT_LINKS_INDEX + 1);
@@ -748,7 +742,7 @@ function getRecordingAndChatLinks() {
 function cancelFullEvent(event) {
   try {
     // If the event was canceled previously (e.g. someone manually canceled), then deleteEvent() throws exception.
-    event.deleteEvent();
+    event.deleteEventSeries();
     return true;
   } catch (error) {
     logBeginDelimiter();
@@ -764,14 +758,14 @@ function cancelEvents() {
   if (!setupResult.success) {
     return;
   }
-  let { calendar, activeSheet, oneToOneData } = setupResult;
+  let { calendar, activeSheet, p2pData } = setupResult;
   let calendarId = calendar.getId();
 
   let canceledRows = [];
   let invalidMeetings = [];
   let partialCanceledRows = [];
   let invalidDateTimeRows = [];
-  for (let rowIndex = 0; rowIndex < oneToOneData.length; ++rowIndex) {
+  for (let rowIndex = 0; rowIndex < p2pData.length; ++rowIndex) {
     let rowNumber = rowIndex + DATA_BEGIN_ROW;
     let opsRequestFlag = parseInt(activeSheet.getRange(rowNumber, OPS_REQUEST_INDEX + 1).getValue());
     if (opsRequestFlag !== FLAG_CANCEL_INVITE) {
@@ -787,15 +781,15 @@ function cancelEvents() {
       continue;
     }
 
-    let event = getEvent(calendar, meetId);
+    let event = getEventSeries(calendar, meetId);
     if (!event) {
       invalidMeetings.push(rowNumber);
       continue;
     }
     
     let cancelDatesCell = activeSheet.getRange(rowNumber, CANCELLATION_DATES_INDEX + 1);
-    let cancelDates = oneToOneData[rowIndex][CANCELLATION_DATES_INDEX].trim();
-    let startTime = parseTime(oneToOneData[rowIndex][START_TIME_INDEX].trim());
+    let cancelDates = p2pData[rowIndex][CANCELLATION_DATES_INDEX].trim();
+    let startTime = parseTime(p2pData[rowIndex][START_TIME_INDEX].trim());
     if (!startTime) {
       invalidDateTimeRows.push(rowNumber);
       continue;
@@ -830,11 +824,9 @@ function cancelEvents() {
     }
     
     let instancesDates = {} // For each instance, id format is "meetId_yyyymmddThhmmssZ" and start.dateTime format is "yyyy-mm-ddThh:mm:00+05:30"
-    instancesArray.forEach(
-      function (instance) {
-        instancesDates[new Date(instance.start.dateTime)] = instance.id;
-      }
-    );
+    for (let instance of instancesArray) {
+      instancesDates[new Date(instance.start.dateTime)] = instance.id;
+    }
 
     let cancelSuccessDates = [];
     for (let i = 0; i < cancelDatesArray.length; ++i) {
