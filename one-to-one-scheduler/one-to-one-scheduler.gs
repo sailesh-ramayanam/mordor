@@ -189,7 +189,8 @@ function parseDate(dateString) {
     }
 
     let year = parseInt(parts[0]);
-    if (year !== 2022 && year !== 2023) {
+    const currentYear = (new Date()).getFullYear();
+    if (year < currentYear) {
       return null;
     }
 
